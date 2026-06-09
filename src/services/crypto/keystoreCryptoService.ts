@@ -14,6 +14,7 @@ interface WarrantyCryptoNative {
   decryptText(cipher: string): Promise<string>;
   sealFile(srcPath: string, destPath: string): Promise<void>;
   openFile(srcPath: string): Promise<string>;
+  clearDecryptedCache(): Promise<void>;
 }
 
 export class KeystoreCryptoService implements CryptoService {
@@ -43,5 +44,9 @@ export class KeystoreCryptoService implements CryptoService {
 
   openFile(srcPath: string): Promise<string> {
     return this.module().openFile(srcPath);
+  }
+
+  clearDecryptedCache(): Promise<void> {
+    return this.module().clearDecryptedCache();
   }
 }

@@ -16,6 +16,11 @@ export interface CryptoService {
    * Passthrough возвращает исходный путь (файл уже читаемый).
    */
   openFile(srcPath: string): Promise<string>;
+  /**
+   * Delete leftover decrypted temp files (created by openFile previews).
+   * Optional: passthrough has nothing to clean. Called on app start.
+   */
+  clearDecryptedCache?(): Promise<void>;
 }
 
 /**

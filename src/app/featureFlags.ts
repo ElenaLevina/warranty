@@ -1,20 +1,24 @@
 /**
- * Фичефлаги для перехода с mock-среза на реальные нативные возможности.
+ * Feature flags for switching from the mock slice to real native capabilities.
  *
- * По умолчанию ВСЁ выключено — так эмулятор-срез и Node-тесты используют
- * mock-OCR, dev-камеру и passthrough-crypto и остаются зелёными без устройства.
+ * On the emulator slice and in Node tests these are irrelevant: tests build
+ * services via createTestServices (mock OCR, dev camera, passthrough crypto) and
+ * stay green without a device. The flags only affect createAppServices (the real
+ * app build).
  *
- * На ФИЗИЧЕСКОМ ТЕЛЕФОНЕ включите нужные флаги и пересоберите (`npm run android`):
- *   - realCamera   → живая камера vision-camera (live-preview, фото/видео)
- *   - nativeOcr    → распознавание номера через ML Kit (модуль WarrantyOcr)
- *   - nativeCrypto → шифрование at-rest через Android Keystore (модуль WarrantyCrypto)
+ * On a PHYSICAL PHONE, enable the flags you need and rebuild (`npm run android`):
+ *   - realCamera   -> live vision-camera preview (photo/video)
+ *   - nativeOcr    -> plate recognition via ML Kit (WarrantyOcr native module)
+ *   - nativeCrypto -> at-rest encryption via Android Keystore (WarrantyCrypto)
  *
- * Текущая итерация (по согласованию): камера + OCR реальные, шифрование позже.
+ * NOTE: enabling nativeCrypto encrypts session.json and media. Cases recorded
+ * BEFORE enabling it are plaintext and will fail to decrypt — clear app data
+ * once when turning it on for dev: `adb shell pm clear com.warranty`.
  */
 export const FEATURES = {
   realCamera: true,
   nativeOcr: true,
-  nativeCrypto: false,
+  nativeCrypto: true,
 } as const;
 
 export type Features = typeof FEATURES;

@@ -112,6 +112,19 @@ class CryptoModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  /** Delete leftover decrypted temp files (dec_*) from cacheDir. Called on app start. */
+  @ReactMethod
+  fun clearDecryptedCache(promise: Promise) {
+    try {
+      reactApplicationContext.cacheDir
+        .listFiles { f -> f.name.startsWith("dec_") }
+        ?.forEach { it.delete() }
+      promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("CLEAR_CACHE", e.message, e)
+    }
+  }
+
   companion object {
     const val NAME = "WarrantyCrypto"
     private const val ANDROID_KEYSTORE = "AndroidKeyStore"

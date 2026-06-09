@@ -32,7 +32,7 @@ export interface SessionState {
 export type SessionStore = StoreApi<SessionState>;
 
 export function createSessionStore(services: AppServices): SessionStore {
-  const { files, index, upload, notify, ocr, auth, device, config } = services;
+  const { files, index, upload, notify, ocr, auth, device, crypto, config } = services;
 
   /** Current mechanic id; throws if the app is not unlocked. */
   function requireMechanicId(): string {
@@ -98,6 +98,8 @@ export function createSessionStore(services: AppServices): SessionStore {
 
       async bootstrap() {
         await run(async () => {
+          // Remove any leftover decrypted preview temp files (no-op for passthrough).
+          await crypto.clearDecryptedCache?.();
           await refreshOpenSessions(set);
           await upload.processQueue();
         });
