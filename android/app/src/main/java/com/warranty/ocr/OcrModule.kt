@@ -45,18 +45,31 @@ class OcrModule(reactContext: ReactApplicationContext) :
       recognizer.process(image)
         .addOnSuccessListener { visionText ->
           val candidates = Arguments.createArray()
+
+          fun push(text: String, confidence: Double) {
+            val map = Arguments.createMap()
+            map.putString("text", text)
+            map.putDouble("confidence", confidence)
+            candidates.pushMap(map)
+          }
+          fun confOf(value: Float): Double =
+            runCatching { value.toDouble() }.getOrNull()?.takeIf { !it.isNaN() }
+              ?: FALLBACK_CONFIDENCE
+
+          // Israeli plate groups ("310 38 004") are often split across lines/blocks.
+          // Emit candidates at several granularities so the JS parser can match the
+          // joined digits (block-level), the per-line text, and the whole image.
+          val allDigits = StringBuilder()
           for (block in visionText.textBlocks) {
+            push(block.text, confOf(block.confidence)) // joins the block's lines
             for (line in block.lines) {
-              val map = Arguments.createMap()
-              map.putString("text", line.text)
-              val confidence = runCatching { line.confidence.toDouble() }
-                .getOrNull()
-                ?.takeIf { !it.isNaN() }
-                ?: FALLBACK_CONFIDENCE
-              map.putDouble("confidence", confidence)
-              candidates.pushMap(map)
+              push(line.text, confOf(line.confidence))
+              allDigits.append(line.text).append(' ')
             }
           }
+          // Whole-image join as a last resort (rejected by length unless exactly 7/8 digits).
+          push(allDigits.toString(), FALLBACK_CONFIDENCE)
+
           val result = Arguments.createMap()
           result.putArray("candidates", candidates)
           promise.resolve(result)

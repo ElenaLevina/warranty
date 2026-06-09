@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { useServices, useSessionActions } from '../store/StoreProvider';
+import { useServices, useSessionActions, useSessionStore } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { CameraCapture } from '../components/CameraCapture';
 import { FEATURES } from '../app/featureFlags';
@@ -15,6 +15,7 @@ type Phase = 'camera' | 'recognizing' | 'result';
 export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
   const services = useServices();
   const actions = useSessionActions();
+  const lastOcrText = useSessionStore(s => s.lastOcrText);
   const [phase, setPhase] = useState<Phase>('camera');
   const [result, setResult] = useState<PlateResult | null>(null);
   const [tmpPath, setTmpPath] = useState<string | null>(null);
@@ -109,6 +110,11 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
                   ? 'Номер распознан неуверенно. Переснимите при хорошем освещении.'
                   : 'Не удалось распознать номер. Переснимите.'}
               </Text>
+              {lastOcrText.length > 0 && (
+                <Text style={styles.debug} testID="ocr-debug">
+                  OCR увидел: {lastOcrText}
+                </Text>
+              )}
               <PrimaryButton testID="retake" title="Переснять" onPress={retake} />
             </>
           )}
@@ -126,7 +132,8 @@ const styles = StyleSheet.create({
   frameHint: { color: '#ffd54f', fontSize: 13, textAlign: 'center', marginTop: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   plate: { color: '#fff', fontSize: 44, fontWeight: '900', letterSpacing: 2 },
-  error: { color: '#ff8a80', fontSize: 16, textAlign: 'center', marginBottom: 24 },
+  error: { color: '#ff8a80', fontSize: 16, textAlign: 'center', marginBottom: 12 },
+  debug: { color: '#90a4ae', fontSize: 12, textAlign: 'center', marginBottom: 20 },
   actions: { marginTop: 32, alignSelf: 'stretch' },
   gap: { height: 12 },
 });

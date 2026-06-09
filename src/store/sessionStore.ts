@@ -17,6 +17,8 @@ export interface SessionState {
   active: SessionMeta | null;
   /** Статус загрузки по имени файла активной сессии. */
   uploads: Record<string, UploadStatus>;
+  /** Raw text seen by OCR on the last recognize attempt (diagnostics). */
+  lastOcrText: string;
 
   bootstrap(): Promise<void>;
   recognizePlate(imagePath: string): Promise<PlateResult>;
@@ -95,6 +97,7 @@ export function createSessionStore(services: AppServices): SessionStore {
       openSessions: [],
       active: null,
       uploads: {},
+      lastOcrText: '',
 
       async bootstrap() {
         await run(async () => {
@@ -108,6 +111,12 @@ export function createSessionStore(services: AppServices): SessionStore {
       async recognizePlate(imagePath: string) {
         return run(async () => {
           const raw = await ocr.recognize(imagePath);
+          // Stash what OCR saw so the UI can show it on failure (diagnostics).
+          set({
+            lastOcrText: raw.candidates
+              .map(c => `${c.text} (${Math.round(c.confidence * 100)}%)`)
+              .join(' | '),
+          });
           return pickPlate(raw.candidates, config.ocrConfidenceThreshold);
         });
       },
