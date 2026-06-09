@@ -187,9 +187,11 @@ export function CameraCapture({
 
       {showPlateFrame && (
         <View style={styles.overlay} pointerEvents="none">
-          <Text style={styles.hint}>Сфотографируйте номерной знак</Text>
-          <View style={styles.frame}>
-            <Text style={styles.frameHint}>Поместите номер в рамку</Text>
+          <View style={styles.hintBanner}>
+            <Text style={styles.hintTitle}>Сфотографируйте автомобиль</Text>
+            <Text style={styles.hintSub}>
+              Номер распознаётся автоматически и может быть в любом месте кадра
+            </Text>
           </View>
         </View>
       )}
@@ -236,17 +238,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hint: { color: '#fff', fontSize: 16, position: 'absolute', top: 60 },
-  frame: {
-    width: '82%',
-    aspectRatio: 520 / 110,
-    borderWidth: 3,
-    borderColor: '#ffd54f',
+  hintBanner: {
+    position: 'absolute',
+    top: 48,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.55)',
     borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  frameHint: { color: '#ffd54f', fontSize: 13 },
+  hintTitle: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  hintSub: { color: '#ffd54f', fontSize: 13, marginTop: 4, textAlign: 'center' },
   recBadge: {
     position: 'absolute',
     top: 50,

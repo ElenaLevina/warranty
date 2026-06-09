@@ -71,9 +71,11 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       {phase === 'camera' && (
         <View style={styles.cameraArea}>
-          <Text style={styles.hint}>Сфотографируйте номерной знак</Text>
-          <View style={styles.frame}>
-            <Text style={styles.frameHint}>Поместите номер в рамку</Text>
+          <View style={styles.hintBlock}>
+            <Text style={styles.hint}>Сфотографируйте автомобиль</Text>
+            <Text style={styles.frameHint}>
+              Номер распознаётся автоматически в любом месте кадра
+            </Text>
           </View>
           <PrimaryButton testID="shutter" title="Снять" onPress={devCapture} />
         </View>
@@ -119,18 +121,9 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#111' },
   cameraArea: { flex: 1, padding: 20, justifyContent: 'space-between' },
-  hint: { color: '#eee', fontSize: 16, textAlign: 'center', marginTop: 16 },
-  frame: {
-    flex: 1,
-    margin: 24,
-    borderWidth: 3,
-    borderColor: '#ffd54f',
-    borderRadius: 12,
-    aspectRatio: 520 / 110,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  frameHint: { color: '#ffd54f', fontSize: 13 },
+  hintBlock: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  hint: { color: '#eee', fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  frameHint: { color: '#ffd54f', fontSize: 13, textAlign: 'center', marginTop: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   plate: { color: '#fff', fontSize: 44, fontWeight: '900', letterSpacing: 2 },
   error: { color: '#ff8a80', fontSize: 16, textAlign: 'center', marginBottom: 24 },
