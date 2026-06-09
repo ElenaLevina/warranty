@@ -110,7 +110,8 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
                   ? 'Номер распознан неуверенно. Переснимите при хорошем освещении.'
                   : 'Не удалось распознать номер. Переснимите.'}
               </Text>
-              {lastOcrText.length > 0 && (
+              {/* Diagnostics only in debug builds (__DEV__ is false in release). */}
+              {__DEV__ && lastOcrText.length > 0 && (
                 <Text style={styles.debug} testID="ocr-debug">
                   OCR увидел: {lastOcrText}
                 </Text>
