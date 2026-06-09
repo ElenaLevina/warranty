@@ -28,6 +28,8 @@ export interface SessionMeta {
   /** ISO date-time окончания; null пока status === 'open'. */
   session_end: string | null;
   mechanic_id: string;
+  /** Stable per-install device id that recorded the case (§8). */
+  device_id?: string;
   files: CaseFileEntry[];
   /** Описание повреждений, вводит механик. */
   description: string;

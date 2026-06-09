@@ -32,7 +32,7 @@ export interface SessionState {
 export type SessionStore = StoreApi<SessionState>;
 
 export function createSessionStore(services: AppServices): SessionStore {
-  const { files, index, upload, notify, ocr, auth, config } = services;
+  const { files, index, upload, notify, ocr, auth, device, config } = services;
 
   /** Current mechanic id; throws if the app is not unlocked. */
   function requireMechanicId(): string {
@@ -115,6 +115,7 @@ export function createSessionStore(services: AppServices): SessionStore {
           const meta = await files.createCase({
             plateNumber,
             mechanicId: requireMechanicId(),
+            deviceId: device.getDeviceId(),
             plateImageTmpPath,
           });
           set({ active: meta, uploads: uploadsFromMeta(meta, {}) });

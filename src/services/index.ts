@@ -10,6 +10,7 @@ export * from './ocr/ocrService';
 export * from './ocr/plateParser';
 export * from './camera/cameraService';
 export * from './auth/authService';
+export * from './device/deviceService';
 export * from './storage/storageIndex';
 export * from './upload/uploadService';
 export * from './notify/notifyService';

@@ -56,6 +56,25 @@ describe('FilesService.createCase', () => {
     expect(await fs.exists(`${ROOT}/${PLATE}/session.json`)).toBe(true);
   });
 
+  it('writes device_id into session.json when provided', async () => {
+    const { svc } = await setup();
+    await svc.createCase({
+      plateNumber: PLATE,
+      mechanicId: 'user_042',
+      deviceId: 'dev_abc123abc123',
+      plateImageTmpPath: '/tmp/plate.jpg',
+    });
+    const meta = await svc.readSession(PLATE);
+    expect(meta.device_id).toBe('dev_abc123abc123');
+  });
+
+  it('omits device_id when not provided', async () => {
+    const { svc } = await setup();
+    await createOpenCase(svc);
+    const meta = await svc.readSession(PLATE);
+    expect(meta.device_id).toBeUndefined();
+  });
+
   it('returns the existing open session when called again (return to active session)', async () => {
     const { svc } = await setup();
     await createOpenCase(svc);

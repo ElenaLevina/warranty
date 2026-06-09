@@ -20,6 +20,8 @@ const READ_ONLY_MODE = 0o444;
 export interface CreateCaseParams {
   plateNumber: string;
   mechanicId: string;
+  /** Stable per-install device id (§8). Omitted when not available. */
+  deviceId?: string;
   /** Временный путь снимка номера из камеры. */
   plateImageTmpPath: string;
 }
@@ -100,7 +102,7 @@ export class FilesService {
 
   /** Создать кейс: папка = номер, plate.jpg, session.json (status=open). */
   async createCase(params: CreateCaseParams): Promise<SessionMeta> {
-    const { plateNumber, mechanicId, plateImageTmpPath } = params;
+    const { plateNumber, mechanicId, deviceId, plateImageTmpPath } = params;
     const sessionExists = await this.fs.exists(this.sessionPath(plateNumber));
     if (sessionExists) {
       const existing = await this.readSession(plateNumber);
@@ -118,6 +120,8 @@ export class FilesService {
       session_start: this.isoNow(),
       session_end: null,
       mechanic_id: mechanicId,
+      // Omitted from JSON when undefined (e.g. in unit tests).
+      ...(deviceId !== undefined ? { device_id: deviceId } : {}),
       files: [{ name: 'plate.jpg', type: 'photo', timestamp: this.clockTime() }],
       description: '',
       status: 'open',

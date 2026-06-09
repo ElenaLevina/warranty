@@ -18,6 +18,11 @@
       "examples": ["2026-05-25T09:31:00"]
     },
     "mechanic_id": { "type": "string", "examples": ["user_042"] },
+    "device_id": {
+      "type": "string",
+      "description": "Стабильный per-install id устройства, записавшего кейс (§8). Необязательное поле.",
+      "examples": ["dev_1a2b3c4d5e6f"]
+    },
     "files": {
       "type": "array",
       "items": {

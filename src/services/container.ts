@@ -19,6 +19,7 @@ import { StubNotifyService, type NotifyService, type NotifySink } from './notify
 import { MockOcrService, type OcrService } from './ocr/ocrService';
 import { DevCameraService, type CameraService } from './camera/cameraService';
 import { MmkvAuthService, type AuthService } from './auth/authService';
+import { MmkvDeviceService, type DeviceService } from './device/deviceService';
 import type { OcrResult } from '../types';
 
 /**
@@ -43,6 +44,7 @@ export interface AppServices {
   ocr: OcrService;
   camera: CameraService;
   auth: AuthService;
+  device: DeviceService;
 }
 
 export interface RealServicesOptions {
@@ -68,7 +70,8 @@ export function createRealServices(opts: RealServicesOptions): AppServices {
   const ocr = opts.native?.ocr ?? new MockOcrService(opts.ocrScript);
   const camera = new DevCameraService(fs, opts.tmpDir);
   const auth = new MmkvAuthService(opts.indexEncryptionKey);
-  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth };
+  const device = new MmkvDeviceService(opts.indexEncryptionKey);
+  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device };
 }
 
 export interface TestServicesOptions {
@@ -91,5 +94,6 @@ export function createTestServices(opts: TestServicesOptions = {}): AppServices 
   const ocr = new MockOcrService(opts.ocrScript ?? { candidates: [] });
   const camera = new DevCameraService(fs, '/data/tmp');
   const auth = new MmkvAuthService();
-  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth };
+  const device = new MmkvDeviceService();
+  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device };
 }
