@@ -61,7 +61,8 @@ class OcrModule(reactContext: ReactApplicationContext) :
           // joined digits (block-level), the per-line text, and the whole image.
           val allDigits = StringBuilder()
           for (block in visionText.textBlocks) {
-            push(block.text, confOf(block.confidence)) // joins the block's lines
+            // TextBlock has no confidence in ML Kit -> use fallback for the joined text.
+            push(block.text, FALLBACK_CONFIDENCE) // joins the block's lines
             for (line in block.lines) {
               push(line.text, confOf(line.confidence))
               allDigits.append(line.text).append(' ')
