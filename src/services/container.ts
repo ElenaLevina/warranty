@@ -18,6 +18,7 @@ import { StubUploadService, type UploadService } from './upload/uploadService';
 import { StubNotifyService, type NotifyService, type NotifySink } from './notify/notifyService';
 import { MockOcrService, type OcrService } from './ocr/ocrService';
 import { DevCameraService, type CameraService } from './camera/cameraService';
+import { MmkvAuthService, type AuthService } from './auth/authService';
 import type { OcrResult } from '../types';
 
 /**
@@ -41,6 +42,7 @@ export interface AppServices {
   notify: NotifyService;
   ocr: OcrService;
   camera: CameraService;
+  auth: AuthService;
 }
 
 export interface RealServicesOptions {
@@ -65,7 +67,8 @@ export function createRealServices(opts: RealServicesOptions): AppServices {
   const notify = new StubNotifyService(opts.notifySink);
   const ocr = opts.native?.ocr ?? new MockOcrService(opts.ocrScript);
   const camera = new DevCameraService(fs, opts.tmpDir);
-  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera };
+  const auth = new MmkvAuthService(opts.indexEncryptionKey);
+  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth };
 }
 
 export interface TestServicesOptions {
@@ -87,5 +90,6 @@ export function createTestServices(opts: TestServicesOptions = {}): AppServices 
   const notify = new StubNotifyService(opts.notifySink ?? (() => {}));
   const ocr = new MockOcrService(opts.ocrScript ?? { candidates: [] });
   const camera = new DevCameraService(fs, '/data/tmp');
-  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera };
+  const auth = new MmkvAuthService();
+  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth };
 }

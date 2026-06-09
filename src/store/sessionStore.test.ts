@@ -25,6 +25,8 @@ function harness(ocrScript: OcrResult): Harness {
     now: fixedClock(),
     notifySink: (_msg, event) => events.push(event),
   });
+  // A mechanic must be unlocked before sessions can be created.
+  services.auth.register('tester', '1234');
   const store = createSessionStore(services);
   return { store, services, events };
 }

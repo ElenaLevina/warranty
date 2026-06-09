@@ -58,6 +58,7 @@ describe('StartScreen', () => {
 describe('PlateCaptureScreen', () => {
   it('captures -> recognizes -> confirms -> opens ActiveSession', async () => {
     const services = createTestServices({ ocrScript: okOcr });
+    services.auth.register('tester', '1234'); // a mechanic must be unlocked
     const nav = makeNav();
     let tree!: ReactTestRenderer;
     await act(async () => {

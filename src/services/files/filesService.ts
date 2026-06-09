@@ -181,7 +181,12 @@ export class FilesService {
   }
 
   /** Список открытых сессий для стартового экрана. */
-  async listOpenSessions(): Promise<OpenSessionSummary[]> {
+  /**
+   * List open sessions. When `mechanicId` is provided, only sessions belonging
+   * to that mechanic are returned (per-mechanic isolation, CLAUDE.md §8): a new
+   * employee never sees the previous mechanic's cases.
+   */
+  async listOpenSessions(mechanicId?: string): Promise<OpenSessionSummary[]> {
     const rootExists = await this.fs.exists(this.casesRoot);
     if (!rootExists) {
       return [];
@@ -197,7 +202,8 @@ export class FilesService {
         continue;
       }
       const meta = await this.readSession(d.name);
-      if (meta.status === 'open') {
+      const ownedByMechanic = mechanicId === undefined || meta.mechanic_id === mechanicId;
+      if (meta.status === 'open' && ownedByMechanic) {
         result.push({
           plate_number: meta.plate_number,
           session_start: meta.session_start,

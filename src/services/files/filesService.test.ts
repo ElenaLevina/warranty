@@ -144,6 +144,28 @@ describe('FilesService.setDescription + listOpenSessions', () => {
     expect(meta.description).toBe('Трещина в блоке цилиндров.');
   });
 
+  it('isolates open sessions by mechanic_id', async () => {
+    const { fs, svc } = await setup();
+    await fs.writeFile('/tmp/plateA.jpg', 'A');
+    await fs.writeFile('/tmp/plateB.jpg', 'B');
+    await svc.createCase({
+      plateNumber: '111-11-111',
+      mechanicId: 'user_aaa',
+      plateImageTmpPath: '/tmp/plateA.jpg',
+    });
+    await svc.createCase({
+      plateNumber: '22-222-22',
+      mechanicId: 'user_bbb',
+      plateImageTmpPath: '/tmp/plateB.jpg',
+    });
+
+    const forA = await svc.listOpenSessions('user_aaa');
+    expect(forA.map(s => s.plate_number)).toEqual(['111-11-111']);
+
+    const all = await svc.listOpenSessions();
+    expect(all).toHaveLength(2);
+  });
+
   it('lists only open sessions', async () => {
     const { fs, svc } = await setup();
     await createOpenCase(svc);

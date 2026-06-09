@@ -1,18 +1,20 @@
 /**
- * React-обвязка стора и сервисов. Provider создаёт набор сервисов и стор один раз;
- * хуки useSessionStore/useServices дают доступ из экранов.
+ * React wiring for services and stores. The provider builds the service set and
+ * the session/auth stores once; hooks expose them to screens.
  *
- * В срезе сервисы тестовые/реальные передаются снаружи (DI), что позволяет
- * рендерить экраны в тестах с in-memory сервисами.
+ * Services are injected (DI), which lets tests render screens with in-memory
+ * services and a registered mechanic.
  */
 import React, { createContext, useContext, useMemo, useRef } from 'react';
 import { useStore } from 'zustand';
 import type { AppServices } from '../services/container';
 import { createSessionStore, type SessionState, type SessionStore } from './sessionStore';
+import { createAuthStore, type AuthState, type AuthStore } from './authStore';
 
 interface StoreContextValue {
   services: AppServices;
   store: SessionStore;
+  authStore: AuthStore;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -25,11 +27,19 @@ export function StoreProvider({
   children: React.ReactNode;
 }): React.JSX.Element {
   const storeRef = useRef<SessionStore | null>(null);
+  const authStoreRef = useRef<AuthStore | null>(null);
   if (!storeRef.current) {
     storeRef.current = createSessionStore(services);
   }
+  if (!authStoreRef.current) {
+    authStoreRef.current = createAuthStore(services.auth);
+  }
   const value = useMemo<StoreContextValue>(
-    () => ({ services, store: storeRef.current as SessionStore }),
+    () => ({
+      services,
+      store: storeRef.current as SessionStore,
+      authStore: authStoreRef.current as AuthStore,
+    }),
     [services],
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -38,7 +48,7 @@ export function StoreProvider({
 function useStoreContext(): StoreContextValue {
   const ctx = useContext(StoreContext);
   if (ctx === null) {
-    throw new Error('useStoreContext должен использоваться внутри StoreProvider');
+    throw new Error('useStoreContext must be used inside StoreProvider');
   }
   return ctx;
 }
@@ -52,8 +62,19 @@ export function useSessionStore<T>(selector: (s: SessionState) => T): T {
   return useStore(store, selector);
 }
 
-/** Доступ к экшенам без подписки на стейт (для обработчиков). */
+/** Session actions without subscribing to state (for handlers). */
 export function useSessionActions(): SessionState {
   const { store } = useStoreContext();
   return store.getState();
+}
+
+export function useAuthStore<T>(selector: (s: AuthState) => T): T {
+  const { authStore } = useStoreContext();
+  return useStore(authStore, selector);
+}
+
+/** Auth actions without subscribing to state (for handlers). */
+export function useAuthActions(): AuthState {
+  const { authStore } = useStoreContext();
+  return authStore.getState();
 }

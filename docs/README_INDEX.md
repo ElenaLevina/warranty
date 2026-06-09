@@ -24,6 +24,15 @@
 | 6 | Реальный нативный мост ML Kit (на устройстве) | 🧩 скелет готов, собирать на устройстве |
 | 7 | Шифрование at-rest (Android Keystore, на устройстве) | 🧩 скелет готов, собирать на устройстве |
 
+### Авторизация (§8) — готово
+
+Локальный вход без бэкенда: регистрация при первом запуске (логин + PIN), PIN-разблокировка
+на каждом запуске, «Сменить механика». `mechanic_id` берётся из auth; список сессий
+изолируется по механику (`FilesService.listOpenSessions(mechanicId)`). PIN — salted SHA-256
+в зашифрованном MMKV. Биометрия — за интерфейсом `AuthService`, отдельным шагом.
+Файлы: `src/services/auth/*`, `src/store/authStore.ts`, `src/screens/{Register,Lock}Screen.tsx`,
+гейт в `RootNavigator`.
+
 ### Проверки среза (Фазы 0–5)
 
 `npm test` — 37 тестов зелёные · `npm run typecheck` (tsc) — чисто · `npm run lint` — 0 ошибок.

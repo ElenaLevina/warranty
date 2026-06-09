@@ -3,7 +3,12 @@ import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { useSessionStore, useSessionActions } from '../store/StoreProvider';
+import {
+  useSessionStore,
+  useSessionActions,
+  useAuthStore,
+  useAuthActions,
+} from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Start'>;
@@ -11,6 +16,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Start'>;
 export function StartScreen({ navigation }: Props): React.JSX.Element {
   const openSessions = useSessionStore(s => s.openSessions);
   const actions = useSessionActions();
+  const mechanic = useAuthStore(s => s.current);
+  const authActions = useAuthActions();
 
   useEffect(() => {
     actions.bootstrap().catch(() => undefined);
@@ -24,6 +31,23 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.topBar}>
+        {mechanic !== null && (
+          <Text testID="current-mechanic" style={styles.mechanic}>
+            {mechanic.login}
+          </Text>
+        )}
+        <Pressable
+          testID="lock-app"
+          onPress={() => {
+            actions.leaveActive();
+            authActions.lock();
+          }}
+          hitSlop={8}>
+          <Text style={styles.lock}>Выйти</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.header}>
         <Text style={styles.logo}>🔧 Warranty</Text>
         <Text style={styles.subtitle}>Документирование гарантийного случая</Text>
@@ -63,7 +87,10 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-  header: { alignItems: 'center', marginTop: 40 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mechanic: { fontSize: 14, color: '#455a64', fontWeight: '600' },
+  lock: { fontSize: 14, color: '#1565c0', fontWeight: '600' },
+  header: { alignItems: 'center', marginTop: 24 },
   logo: { fontSize: 34, fontWeight: '800', color: '#1565c0' },
   subtitle: { fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' },
   cta: { marginTop: 48 },

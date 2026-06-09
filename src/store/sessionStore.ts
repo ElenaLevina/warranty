@@ -32,10 +32,20 @@ export interface SessionState {
 export type SessionStore = StoreApi<SessionState>;
 
 export function createSessionStore(services: AppServices): SessionStore {
-  const { files, index, upload, notify, ocr, config } = services;
+  const { files, index, upload, notify, ocr, auth, config } = services;
+
+  /** Current mechanic id; throws if the app is not unlocked. */
+  function requireMechanicId(): string {
+    const identity = auth.current();
+    if (identity === null) {
+      throw new Error('Нет авторизованного механика');
+    }
+    return identity.mechanicId;
+  }
 
   async function refreshOpenSessions(set: (p: Partial<SessionState>) => void): Promise<void> {
-    const open = await files.listOpenSessions();
+    // Isolation: only the current mechanic's open sessions are listed (§8).
+    const open = await files.listOpenSessions(auth.current()?.mechanicId);
     index.setOpenSessions(open);
     set({ openSessions: open });
   }
@@ -104,7 +114,7 @@ export function createSessionStore(services: AppServices): SessionStore {
         await run(async () => {
           const meta = await files.createCase({
             plateNumber,
-            mechanicId: config.mechanicId,
+            mechanicId: requireMechanicId(),
             plateImageTmpPath,
           });
           set({ active: meta, uploads: uploadsFromMeta(meta, {}) });
