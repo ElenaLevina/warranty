@@ -54,5 +54,15 @@ describe('authStore', () => {
     store.getState().switchUser();
     expect(store.getState().status).toBe('unregistered');
     expect(store.getState().current).toBeNull();
+    expect(store.getState().registeredLogin).toBeNull();
+  });
+
+  it('exposes the registered login for the lock screen', () => {
+    const { store } = harness();
+    store.getState().register('Ivan', '1234', '1234');
+    store.getState().lock();
+    // login stays visible while locked, identity is cleared
+    expect(store.getState().current).toBeNull();
+    expect(store.getState().registeredLogin).toBe('Ivan');
   });
 });

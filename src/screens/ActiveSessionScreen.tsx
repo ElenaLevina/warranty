@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -22,6 +22,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const phase = useSessionStore(s => s.phase);
   const [description, setDescription] = useState(active?.description ?? '');
   const [cameraMode, setCameraMode] = useState<CaptureMode | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   if (active === null) {
     return (
@@ -95,7 +96,10 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled">
         <Text style={styles.plate}>{active.plate_number}</Text>
         <Text testID="file-counter" style={styles.counter}>
           {files.length} файлов · {photoCount} фото, {videoCount} видео
@@ -132,6 +136,8 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           value={description}
           onChangeText={setDescription}
           onBlur={saveDescription}
+          // Scroll the field above the keyboard when it opens (manifest uses adjustResize).
+          onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150)}
         />
 
         <View style={styles.finish}>
@@ -144,7 +150,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20 },
+  content: { padding: 20, paddingBottom: 120 },
   empty: { textAlign: 'center', marginTop: 40, color: '#666' },
   plate: { fontSize: 32, fontWeight: '900', color: '#222', textAlign: 'center' },
   counter: { fontSize: 14, color: '#777', textAlign: 'center', marginTop: 6, marginBottom: 16 },

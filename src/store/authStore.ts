@@ -14,6 +14,8 @@ const PIN_RE = /^\d{4,6}$/;
 export interface AuthState {
   status: AuthStatus;
   current: MechanicIdentity | null;
+  /** Login of the registered mechanic, shown on the lock screen. */
+  registeredLogin: string | null;
   error: string | null;
 
   /** Resolve the initial status from persisted registration. */
@@ -31,12 +33,14 @@ export function createAuthStore(auth: AuthService): AuthStore {
   return createStore<AuthState>((set) => ({
     status: auth.isRegistered() ? 'locked' : 'unregistered',
     current: null,
+    registeredLogin: auth.registeredLogin(),
     error: null,
 
     init() {
       set({
         status: auth.isRegistered() ? 'locked' : 'unregistered',
         current: null,
+        registeredLogin: auth.registeredLogin(),
         error: null,
       });
     },
@@ -55,7 +59,12 @@ export function createAuthStore(auth: AuthService): AuthStore {
         return false;
       }
       const identity = auth.register(login, pin);
-      set({ status: 'authenticated', current: identity, error: null });
+      set({
+        status: 'authenticated',
+        current: identity,
+        registeredLogin: identity.login,
+        error: null,
+      });
       return true;
     },
 
@@ -76,7 +85,7 @@ export function createAuthStore(auth: AuthService): AuthStore {
 
     switchUser() {
       auth.reset();
-      set({ status: 'unregistered', current: null, error: null });
+      set({ status: 'unregistered', current: null, registeredLogin: null, error: null });
     },
   }));
 }

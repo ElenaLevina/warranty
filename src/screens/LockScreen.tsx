@@ -11,6 +11,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
  */
 export function LockScreen(): React.JSX.Element {
   const error = useAuthStore(s => s.error);
+  const login = useAuthStore(s => s.registeredLogin);
   const actions = useAuthActions();
   const [pin, setPin] = useState('');
 
@@ -33,7 +34,12 @@ export function LockScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>🔧 Warranty</Text>
-        <Text style={styles.subtitle}>Введите PIN для входа</Text>
+        {login !== null && (
+          <Text testID="lock-login" style={styles.login}>
+            Вход: {login}
+          </Text>
+        )}
+        <Text style={styles.subtitle}>Введите PIN</Text>
       </View>
 
       <View style={styles.form}>
@@ -71,6 +77,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#fff' },
   header: { alignItems: 'center', marginTop: 48, marginBottom: 32 },
   logo: { fontSize: 30, fontWeight: '800', color: '#1565c0' },
+  login: { fontSize: 18, color: '#222', fontWeight: '700', marginTop: 10 },
   subtitle: { fontSize: 14, color: '#666', marginTop: 6 },
   form: { flex: 1 },
   input: {

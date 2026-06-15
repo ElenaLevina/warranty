@@ -33,6 +33,8 @@ export interface AuthService {
   unlock(pin: string): MechanicIdentity | null;
   /** Currently unlocked identity, or null when locked/unregistered. */
   current(): MechanicIdentity | null;
+  /** Registered login (visible on the lock screen even before unlocking). */
+  registeredLogin(): string | null;
   /** Lock the app (keeps the registration, clears the in-memory session). */
   lock(): void;
   /** Clear the stored registration (employee switch / fresh start). */
@@ -102,6 +104,10 @@ export class MmkvAuthService implements AuthService {
 
   current(): MechanicIdentity | null {
     return this.session;
+  }
+
+  registeredLogin(): string | null {
+    return this.store.getString(K_LOGIN) ?? null;
   }
 
   lock(): void {
