@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
@@ -50,8 +50,12 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
     if (result?.ok !== true || tmpPath === null) {
       return;
     }
-    await actions.startCase(result.plate, tmpPath);
-    navigation.replace('ActiveSession', { plate: result.plate });
+    try {
+      const caseId = await actions.startCase(result.plate, tmpPath);
+      navigation.replace('ActiveSession', { caseId });
+    } catch (e) {
+      Alert.alert('Не удалось открыть сессию', e instanceof Error ? e.message : String(e));
+    }
   };
 
   // Реальная камера (на телефоне): живой preview с рамкой номера.

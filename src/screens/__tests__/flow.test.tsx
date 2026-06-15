@@ -83,9 +83,13 @@ describe('PlateCaptureScreen', () => {
     await act(async () => press(tree, 'confirm-plate'));
     await flush();
 
-    expect(nav.replace).toHaveBeenCalledWith('ActiveSession', { plate: '123-45-678' });
+    expect(nav.replace).toHaveBeenCalledWith(
+      'ActiveSession',
+      expect.objectContaining({ caseId: expect.stringMatching(/^123-45-678_/) }),
+    );
     // кейс реально создан на (in-memory) диске
-    const meta = await services.files.readSession('123-45-678');
+    const caseId = ((nav.replace as jest.Mock).mock.calls[0]?.[1] as { caseId: string }).caseId;
+    const meta = await services.files.readSession(caseId);
     expect(meta.status).toBe('open');
     expect(meta.files[0]?.name).toBe('plate.jpg');
   });

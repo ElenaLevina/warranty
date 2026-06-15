@@ -1,19 +1,23 @@
 /**
- * FilesService — ЕДИНСТВЕННЫЕ врата записи в папку кейса.
+ * FilesService — the ONLY write gate into a case folder.
  *
- * Инварианты:
- *  - Любая мутация кейса проходит здесь и предваряется assertOpen().
- *  - При записи в closed-кейс операция отклоняется и фиксируется в tamper.log
- *    (CLAUDE.md §5.4). Это app-level инвариант (приложение владеет своим sandbox).
- *  - Все файлы помещаются через CryptoService.sealFile (at-rest шифрование).
- *  - Нумерация: plate.jpg — всегда первое фото; photo_NNN.jpg и video_NNN.mp4 —
- *    раздельные счётчики с 001, по 3 цифры.
+ * Case identity: a case is addressed by its `caseId` (= folder name), which is
+ * `<plate>_<datetime>_<rand>`. This allows several cases for the SAME plate
+ * (different warranty incidents on one car). `plate_number` stays inside
+ * session.json. Every "Начать осмотр" creates a brand-new case.
+ *
+ * Invariants:
+ *  - Any case mutation goes through here and is preceded by assertOpen().
+ *  - Writing to a closed case is rejected and logged to tamper.log (CLAUDE.md §5.4).
+ *  - Files are placed via CryptoService.sealFile (at-rest encryption).
+ *  - Numbering: plate.jpg is always the first photo; photo_NNN.jpg and
+ *    video_NNN.mp4 have independent counters starting at 001.
  */
 import type { CaseFileEntry, OpenSessionSummary, SessionMeta } from '../../types';
 import type { FileSystem } from './fileSystem';
 import type { CryptoService } from '../crypto/cryptoService';
 import { APP_CONFIG } from '../../config';
-import { CaseAlreadyClosedError, SessionClosedError } from './errors';
+import { SessionClosedError } from './errors';
 
 const READ_ONLY_MODE = 0o444;
 
@@ -39,12 +43,12 @@ export class FilesService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  // --- пути ---
-  private caseDir(plate: string): string {
-    return `${this.casesRoot}/${plate}`;
+  // --- paths (keyed by caseId = folder name) ---
+  private caseDir(caseId: string): string {
+    return `${this.casesRoot}/${caseId}`;
   }
-  private sessionPath(plate: string): string {
-    return `${this.caseDir(plate)}/session.json`;
+  private sessionPath(caseId: string): string {
+    return `${this.caseDir(caseId)}/session.json`;
   }
   private tamperLogPath(): string {
     return `${this.casesRoot}/tamper.log`;
@@ -58,31 +62,39 @@ export class FilesService {
     return this.now().toISOString().slice(11, 19);
   }
 
-  // --- чтение ---
-  async readSession(plate: string): Promise<SessionMeta> {
-    const raw = await this.fs.readFile(this.sessionPath(plate));
+  /** Build a unique case id: `<plate>_<YYYYMMDD-HHMMSS>_<rand>`. */
+  private makeCaseId(plate: string): string {
+    const iso = this.isoNow();
+    const stamp = `${iso.slice(0, 10).replace(/-/g, '')}-${iso.slice(11, 19).replace(/:/g, '')}`;
+    const rand = Math.random().toString(36).slice(2, 5);
+    return `${plate}_${stamp}_${rand}`;
+  }
+
+  // --- reading ---
+  async readSession(caseId: string): Promise<SessionMeta> {
+    const raw = await this.fs.readFile(this.sessionPath(caseId));
     const json = await this.crypto.decryptText(raw);
     return JSON.parse(json) as SessionMeta;
   }
 
-  private async writeSession(plate: string, meta: SessionMeta): Promise<void> {
+  private async writeSession(caseId: string, meta: SessionMeta): Promise<void> {
     const json = JSON.stringify(meta, null, 2);
     const sealed = await this.crypto.encryptText(json);
-    await this.fs.writeFile(this.sessionPath(plate), sealed);
+    await this.fs.writeFile(this.sessionPath(caseId), sealed);
   }
 
-  /** Гейт записи: бросает и логирует, если кейс не open. */
-  private async assertOpen(plate: string, action: string): Promise<SessionMeta> {
-    const meta = await this.readSession(plate);
+  /** Write gate: throws and logs if the case is not open. */
+  private async assertOpen(caseId: string, action: string): Promise<SessionMeta> {
+    const meta = await this.readSession(caseId);
     if (meta.status !== 'open') {
-      await this.logTamper(plate, action);
-      throw new SessionClosedError(plate, action);
+      await this.logTamper(caseId, action);
+      throw new SessionClosedError(caseId, action);
     }
     return meta;
   }
 
-  private async logTamper(plate: string, action: string): Promise<void> {
-    const line = `${this.isoNow()}\t${plate}\t${action}\tattempt to modify closed case\n`;
+  private async logTamper(caseId: string, action: string): Promise<void> {
+    const line = `${this.isoNow()}\t${caseId}\t${action}\tattempt to modify closed case\n`;
     await this.fs.appendFile(this.tamperLogPath(), line);
   }
 
@@ -98,24 +110,21 @@ export class FilesService {
     return max + 1;
   }
 
-  // --- мутации ---
+  // --- mutations ---
 
-  /** Создать кейс: папка = номер, plate.jpg, session.json (status=open). */
+  /**
+   * Create a brand-new case: folder `<plate>_<datetime>_<rand>`, plate.jpg,
+   * session.json (status=open). Returns the meta (includes the generated case_id).
+   */
   async createCase(params: CreateCaseParams): Promise<SessionMeta> {
     const { plateNumber, mechanicId, deviceId, plateImageTmpPath } = params;
-    const sessionExists = await this.fs.exists(this.sessionPath(plateNumber));
-    if (sessionExists) {
-      const existing = await this.readSession(plateNumber);
-      if (existing.status === 'closed') {
-        throw new CaseAlreadyClosedError(plateNumber);
-      }
-      return existing; // уже открыт — вернуть как есть (возврат в активную сессию)
-    }
+    const caseId = this.makeCaseId(plateNumber);
 
-    await this.fs.mkdir(this.caseDir(plateNumber));
-    await this.crypto.sealFile(plateImageTmpPath, `${this.caseDir(plateNumber)}/plate.jpg`);
+    await this.fs.mkdir(this.caseDir(caseId));
+    await this.crypto.sealFile(plateImageTmpPath, `${this.caseDir(caseId)}/plate.jpg`);
 
     const meta: SessionMeta = {
+      case_id: caseId,
       plate_number: plateNumber,
       session_start: this.isoNow(),
       session_end: null,
@@ -126,29 +135,29 @@ export class FilesService {
       description: '',
       status: 'open',
     };
-    await this.writeSession(plateNumber, meta);
+    await this.writeSession(caseId, meta);
     return meta;
   }
 
-  async addPhoto(plate: string, tmpPath: string): Promise<CaseFileEntry> {
-    const meta = await this.assertOpen(plate, 'addPhoto');
+  async addPhoto(caseId: string, tmpPath: string): Promise<CaseFileEntry> {
+    const meta = await this.assertOpen(caseId, 'addPhoto');
     const name = `photo_${pad3(this.nextIndex(meta, 'photo'))}.jpg`;
-    await this.crypto.sealFile(tmpPath, `${this.caseDir(plate)}/${name}`);
+    await this.crypto.sealFile(tmpPath, `${this.caseDir(caseId)}/${name}`);
     const entry: CaseFileEntry = { name, type: 'photo', timestamp: this.clockTime() };
     meta.files.push(entry);
-    await this.writeSession(plate, meta);
+    await this.writeSession(caseId, meta);
     return entry;
   }
 
-  async addVideo(plate: string, tmpPath: string, durationSec: number): Promise<CaseFileEntry> {
+  async addVideo(caseId: string, tmpPath: string, durationSec: number): Promise<CaseFileEntry> {
     if (durationSec < 0 || durationSec > APP_CONFIG.maxVideoDurationSec) {
       throw new RangeError(
         `Длительность видео ${durationSec}с вне допустимого диапазона 0..${APP_CONFIG.maxVideoDurationSec}`,
       );
     }
-    const meta = await this.assertOpen(plate, 'addVideo');
+    const meta = await this.assertOpen(caseId, 'addVideo');
     const name = `video_${pad3(this.nextIndex(meta, 'video'))}.mp4`;
-    await this.crypto.sealFile(tmpPath, `${this.caseDir(plate)}/${name}`);
+    await this.crypto.sealFile(tmpPath, `${this.caseDir(caseId)}/${name}`);
     const entry: CaseFileEntry = {
       name,
       type: 'video',
@@ -156,25 +165,25 @@ export class FilesService {
       duration_sec: Math.round(durationSec),
     };
     meta.files.push(entry);
-    await this.writeSession(plate, meta);
+    await this.writeSession(caseId, meta);
     return entry;
   }
 
-  async setDescription(plate: string, description: string): Promise<void> {
-    const meta = await this.assertOpen(plate, 'setDescription');
+  async setDescription(caseId: string, description: string): Promise<void> {
+    const meta = await this.assertOpen(caseId, 'setDescription');
     meta.description = description;
-    await this.writeSession(plate, meta);
+    await this.writeSession(caseId, meta);
   }
 
-  /** Завершить кейс: status=closed, session_end=now, READ ONLY (chmod best-effort). */
-  async closeCase(plate: string): Promise<SessionMeta> {
-    const meta = await this.assertOpen(plate, 'closeCase');
+  /** Close the case: status=closed, session_end=now, READ ONLY (chmod best-effort). */
+  async closeCase(caseId: string): Promise<SessionMeta> {
+    const meta = await this.assertOpen(caseId, 'closeCase');
     meta.status = 'closed';
     meta.session_end = this.isoNow();
-    await this.writeSession(plate, meta);
+    await this.writeSession(caseId, meta);
 
-    // Defense-in-depth: снять write-бит у всех файлов кейса (no-op на части ФС).
-    const dir = this.caseDir(plate);
+    // Defense-in-depth: drop the write bit on the case files (no-op on some FS).
+    const dir = this.caseDir(caseId);
     const entries = await this.fs.readDir(dir);
     for (const e of entries) {
       if (e.isFile) {
@@ -184,7 +193,6 @@ export class FilesService {
     return meta;
   }
 
-  /** Список открытых сессий для стартового экрана. */
   /**
    * List open sessions. When `mechanicId` is provided, only sessions belonging
    * to that mechanic are returned (per-mechanic isolation, CLAUDE.md §8): a new
@@ -209,6 +217,7 @@ export class FilesService {
       const ownedByMechanic = mechanicId === undefined || meta.mechanic_id === mechanicId;
       if (meta.status === 'open' && ownedByMechanic) {
         result.push({
+          case_id: meta.case_id,
           plate_number: meta.plate_number,
           session_start: meta.session_start,
           file_count: meta.files.length,

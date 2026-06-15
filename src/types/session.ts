@@ -21,6 +21,11 @@ export interface CaseFileEntry {
 
 /** Содержимое session.json. Источник правды о сессии на диске. */
 export interface SessionMeta {
+  /**
+   * Уникальный идентификатор кейса = имя папки: `<номер>_<дата-время>_<rand>`.
+   * Позволяет несколько кейсов на один и тот же номер (разные гарантийные случаи).
+   */
+  case_id: string;
   /** Отформатированный номер с дефисами: XXX-XX-XXX | XX-XXX-XX. */
   plate_number: string;
   /** ISO date-time начала сессии. */
@@ -38,6 +43,8 @@ export interface SessionMeta {
 
 /** Краткая запись об открытой сессии для стартового экрана/индекса. */
 export interface OpenSessionSummary {
+  /** Идентификатор кейса (имя папки) — по нему возобновляют сессию. */
+  case_id: string;
   plate_number: string;
   session_start: string;
   file_count: number;

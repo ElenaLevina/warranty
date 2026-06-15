@@ -24,9 +24,9 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const resume = async (plate: string): Promise<void> => {
-    await actions.resume(plate);
-    navigation.navigate('ActiveSession', { plate });
+  const resume = async (caseId: string): Promise<void> => {
+    await actions.resume(caseId);
+    navigation.navigate('ActiveSession', { caseId });
   };
 
   return (
@@ -66,12 +66,12 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
           <Text style={styles.openTitle}>Незакрытые сессии</Text>
           <FlatList
             data={openSessions}
-            keyExtractor={item => item.plate_number}
+            keyExtractor={item => item.case_id}
             renderItem={({ item }) => (
               <Pressable
-                testID={`resume-${item.plate_number}`}
+                testID={`resume-${item.case_id}`}
                 style={styles.row}
-                onPress={() => resume(item.plate_number)}>
+                onPress={() => resume(item.case_id)}>
                 <Text style={styles.rowPlate}>{item.plate_number}</Text>
                 <Text style={styles.rowMeta}>
                   {new Date(item.session_start).toLocaleString()} · {item.file_count} файлов

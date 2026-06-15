@@ -22,8 +22,9 @@ export interface SessionState {
 
   bootstrap(): Promise<void>;
   recognizePlate(imagePath: string): Promise<PlateResult>;
-  startCase(plateNumber: string, plateImageTmpPath: string): Promise<void>;
-  resume(plateNumber: string): Promise<void>;
+  /** Create a new case for the plate. Returns the generated case_id. */
+  startCase(plateNumber: string, plateImageTmpPath: string): Promise<string>;
+  resume(caseId: string): Promise<void>;
   addPhoto(tmpPath: string): Promise<void>;
   addVideo(tmpPath: string, durationSec: number): Promise<void>;
   setDescription(text: string): Promise<void>;
@@ -79,10 +80,10 @@ export function createSessionStore(services: AppServices): SessionStore {
       set({ active: meta, uploads: uploadsFromMeta(meta, get().uploads) });
     }
 
-    async function enqueueLatest(plate: string, fileName: string): Promise<void> {
+    async function enqueueLatest(caseId: string, plateNumber: string, fileName: string): Promise<void> {
       await upload.enqueue({
-        filePath: `${plate}/${fileName}`,
-        plateNumber: plate,
+        filePath: `${caseId}/${fileName}`,
+        plateNumber,
         fileName,
         status: 'pending',
         attempts: 0,
@@ -122,7 +123,7 @@ export function createSessionStore(services: AppServices): SessionStore {
       },
 
       async startCase(plateNumber: string, plateImageTmpPath: string) {
-        await run(async () => {
+        return run(async () => {
           const meta = await files.createCase({
             plateNumber,
             mechanicId: requireMechanicId(),
@@ -130,61 +131,62 @@ export function createSessionStore(services: AppServices): SessionStore {
             plateImageTmpPath,
           });
           set({ active: meta, uploads: uploadsFromMeta(meta, {}) });
-          await enqueueLatest(plateNumber, 'plate.jpg');
-          notify.emit({ kind: 'caseOpened', plate: plateNumber });
+          await enqueueLatest(meta.case_id, meta.plate_number, 'plate.jpg');
+          notify.emit({ kind: 'caseOpened', plate: meta.plate_number });
           await refreshOpenSessions(set);
+          return meta.case_id;
         });
       },
 
-      async resume(plateNumber: string) {
+      async resume(caseId: string) {
         await run(async () => {
-          await reloadActive(plateNumber);
+          await reloadActive(caseId);
         });
       },
 
       async addPhoto(tmpPath: string) {
-        const plate = get().active?.plate_number;
-        if (plate === undefined) {
+        const active = get().active;
+        if (active === null) {
           throw new Error('Нет активной сессии');
         }
         await run(async () => {
-          const entry = await files.addPhoto(plate, tmpPath);
-          await reloadActive(plate);
-          await enqueueLatest(plate, entry.name);
+          const entry = await files.addPhoto(active.case_id, tmpPath);
+          await reloadActive(active.case_id);
+          await enqueueLatest(active.case_id, active.plate_number, entry.name);
         });
       },
 
       async addVideo(tmpPath: string, durationSec: number) {
-        const plate = get().active?.plate_number;
-        if (plate === undefined) {
+        const active = get().active;
+        if (active === null) {
           throw new Error('Нет активной сессии');
         }
         await run(async () => {
-          const entry = await files.addVideo(plate, tmpPath, durationSec);
-          await reloadActive(plate);
-          await enqueueLatest(plate, entry.name);
+          const entry = await files.addVideo(active.case_id, tmpPath, durationSec);
+          await reloadActive(active.case_id);
+          await enqueueLatest(active.case_id, active.plate_number, entry.name);
         });
       },
 
       async setDescription(text: string) {
-        const plate = get().active?.plate_number;
-        if (plate === undefined) {
+        const active = get().active;
+        if (active === null) {
           throw new Error('Нет активной сессии');
         }
         await run(async () => {
-          await files.setDescription(plate, text);
-          await reloadActive(plate);
+          await files.setDescription(active.case_id, text);
+          await reloadActive(active.case_id);
         });
       },
 
       async finish() {
-        const plate = get().active?.plate_number;
-        if (plate === undefined) {
+        const active = get().active;
+        if (active === null) {
           throw new Error('Нет активной сессии');
         }
         await run(async () => {
-          const closed = await files.closeCase(plate);
-          notify.emit({ kind: 'caseClosed', plate, fileCount: closed.files.length });
+          const closed = await files.closeCase(active.case_id);
+          notify.emit({ kind: 'caseClosed', plate: active.plate_number, fileCount: closed.files.length });
           set({ active: null, uploads: {} });
           await refreshOpenSessions(set);
         });

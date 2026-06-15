@@ -2,6 +2,6 @@
 export type RootStackParamList = {
   Start: undefined;
   PlateCapture: undefined;
-  ActiveSession: { plate: string };
+  ActiveSession: { caseId: string };
   SessionComplete: { plate: string; photoCount: number; videoCount: number };
 };

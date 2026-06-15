@@ -2,8 +2,13 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Warranty session metadata",
   "type": "object",
-  "required": ["plate_number", "session_start", "session_end", "mechanic_id", "files", "description", "status"],
+  "required": ["case_id", "plate_number", "session_start", "session_end", "mechanic_id", "files", "description", "status"],
   "properties": {
+    "case_id": {
+      "type": "string",
+      "description": "Уникальный id кейса = имя папки: <номер>_<YYYYMMDD-HHMMSS>_<rand>. Допускает несколько кейсов на один номер.",
+      "examples": ["123-45-678_20260525-091400_a3f"]
+    },
     "plate_number": {
       "type": "string",
       "description": "Отформатированный израильский номер с дефисами",

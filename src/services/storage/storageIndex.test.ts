@@ -17,7 +17,12 @@ describe('MmkvStorageIndex', () => {
     const idx = new MmkvStorageIndex();
     idx.clear();
     idx.setOpenSessions([
-      { plate_number: '123-45-678', session_start: '2026-05-25T09:14:00.000Z', file_count: 3 },
+      {
+        case_id: '123-45-678_20260525-091400_abc',
+        plate_number: '123-45-678',
+        session_start: '2026-05-25T09:14:00.000Z',
+        file_count: 3,
+      },
     ]);
     expect(idx.getOpenSessions()).toHaveLength(1);
     expect(idx.getOpenSessions()[0]?.plate_number).toBe('123-45-678');

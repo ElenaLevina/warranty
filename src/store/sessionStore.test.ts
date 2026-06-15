@@ -89,25 +89,27 @@ describe('sessionStore — full lifecycle', () => {
   it('lists the open session in bootstrap and resumes it', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
-    await store.getState().startCase(PLATE, '/tmp/plate.jpg');
+    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg');
     store.getState().leaveActive();
     expect(store.getState().active).toBeNull();
 
     await store.getState().bootstrap();
     expect(store.getState().openSessions.map(s => s.plate_number)).toEqual([PLATE]);
+    expect(store.getState().openSessions[0]?.case_id).toBe(caseId);
 
-    await store.getState().resume(PLATE);
+    await store.getState().resume(caseId);
     expect(store.getState().active?.plate_number).toBe(PLATE);
+    expect(store.getState().active?.case_id).toBe(caseId);
   });
 
   it('surfaces the READ ONLY invariant as an error after finish', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
-    await store.getState().startCase(PLATE, '/tmp/plate.jpg');
+    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg');
     await store.getState().finish();
 
     // активной сессии нет -> резюмируем закрытую и пытаемся писать
-    await store.getState().resume(PLATE);
+    await store.getState().resume(caseId);
     await expect(store.getState().addPhoto('/tmp/shot.jpg')).rejects.toThrow();
     expect(store.getState().error).toContain('закрыт');
 

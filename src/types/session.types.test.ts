@@ -5,6 +5,7 @@ import type { SessionMeta } from './session';
  * Если тип разойдётся со схемой — tsc упадёт здесь.
  */
 const example: SessionMeta = {
+  case_id: '123-45-678_20260525-091400_abc',
   plate_number: '123-45-678',
   session_start: '2026-05-25T09:14:00',
   session_end: '2026-05-25T09:31:00',
@@ -19,6 +20,7 @@ const example: SessionMeta = {
 };
 
 const openExample: SessionMeta = {
+  case_id: '12-345-67_20260525-091400_xyz',
   plate_number: '12-345-67',
   session_start: '2026-05-25T09:14:00',
   session_end: null, // open -> null
