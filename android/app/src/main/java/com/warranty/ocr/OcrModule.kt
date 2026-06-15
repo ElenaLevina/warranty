@@ -1,5 +1,6 @@
 package com.warranty.ocr
 
+import android.graphics.Rect
 import android.net.Uri
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -46,10 +47,15 @@ class OcrModule(reactContext: ReactApplicationContext) :
         .addOnSuccessListener { visionText ->
           val candidates = Arguments.createArray()
 
-          fun push(text: String, confidence: Double) {
+          fun push(text: String, confidence: Double, box: Rect?) {
             val map = Arguments.createMap()
             map.putString("text", text)
             map.putDouble("confidence", confidence)
+            if (box != null) {
+              // Area (px²) is a proxy for distance: closer car -> bigger plate.
+              map.putDouble("boxArea", box.width().toDouble() * box.height().toDouble())
+              map.putDouble("boxTop", box.top.toDouble())
+            }
             candidates.pushMap(map)
           }
           fun confOf(value: Float): Double =
@@ -62,14 +68,15 @@ class OcrModule(reactContext: ReactApplicationContext) :
           val allDigits = StringBuilder()
           for (block in visionText.textBlocks) {
             // TextBlock has no confidence in ML Kit -> use fallback for the joined text.
-            push(block.text, FALLBACK_CONFIDENCE) // joins the block's lines
+            // Block bounding box is used to prioritize the closest (front) plate.
+            push(block.text, FALLBACK_CONFIDENCE, block.boundingBox) // joins the block's lines
             for (line in block.lines) {
-              push(line.text, confOf(line.confidence))
+              push(line.text, confOf(line.confidence), line.boundingBox)
               allDigits.append(line.text).append(' ')
             }
           }
-          // Whole-image join as a last resort (rejected by length unless exactly 7/8 digits).
-          push(allDigits.toString(), FALLBACK_CONFIDENCE)
+          // Whole-image join as a last resort (no box; rejected by length unless 7/8 digits).
+          push(allDigits.toString(), FALLBACK_CONFIDENCE, null)
 
           val result = Arguments.createMap()
           result.putArray("candidates", candidates)

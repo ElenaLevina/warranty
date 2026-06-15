@@ -102,4 +102,35 @@ describe('pickPlate', () => {
   it('respects a custom threshold', () => {
     expect(pickPlate([cand('12345678', 0.7)], 0.6)).toMatchObject({ ok: true });
   });
+
+  describe('front/closest plate priority (multiple cars in frame)', () => {
+    const withBox = (text: string, confidence: number, boxArea: number, boxTop = 0): OcrCandidate => ({
+      text,
+      confidence,
+      boxArea,
+      boxTop,
+    });
+
+    it('prefers the larger plate (closer car) over a higher-confidence far plate', () => {
+      // Far plate on a lift: tiny box but high confidence.
+      const far = withBox('56498104', 0.99, 1_200);
+      // Front plate: big box, lower confidence.
+      const near = withBox('33591301', 0.9, 90_000);
+      expect(pickPlate([far, near])).toEqual({ ok: true, format: 'old', plate: '335-91-301' });
+    });
+
+    it('breaks ties on equal area by lower position in frame', () => {
+      const higher = withBox('11111111', 0.9, 50_000, 100);
+      const lower = withBox('22222222', 0.9, 50_000, 800);
+      expect(pickPlate([higher, lower])).toEqual({ ok: true, format: 'old', plate: '222-22-222' });
+    });
+
+    it('falls back to confidence when no geometry is present', () => {
+      expect(pickPlate([cand('12345678', 0.9), cand('87654321', 0.95)])).toEqual({
+        ok: true,
+        format: 'old',
+        plate: '876-54-321',
+      });
+    });
+  });
 });

@@ -42,12 +42,26 @@ export function formatPlate(digits: string): PlateResult {
   return { ok: false, reason: 'not_found' };
 }
 
+interface ScoredCandidate {
+  res: Extract<PlateResult, { ok: true }>;
+  confidence: number;
+  /** Bounding box area (px²); 0 when geometry is unknown. */
+  area: number;
+  /** Bounding box top (px); 0 when unknown. */
+  top: number;
+}
+
 /**
  * Выбрать лучший номер из кандидатов OCR.
  * 1. Для каждого кандидата извлечь цифры и попробовать распознать формат.
- * 2. Отфильтровать валидные, отсортировать по убыванию confidence.
- * 3. Нет валидных -> not_found.
- * 4. Лучший ниже порога -> low_confidence (папку НЕ создавать, пересъёмка/ручной ввод).
+ * 2. Отфильтровать валидные.
+ * 3. Приоритет — БЛИЖНИЙ/ПЕРЕДНИЙ номер: сортировка по убыванию площади box
+ *    (крупнее = ближе к камере), затем ниже в кадре, затем по уверенности.
+ *    Это решает кейс «несколько машин в кадре»: выбираем самую близкую табличку,
+ *    а не дальнюю (например, авто на подъёмнике на фоне).
+ *    Когда геометрии нет (mock/тесты) — выбор фактически по уверенности.
+ * 4. Нет валидных -> not_found.
+ * 5. Лучший ниже порога -> low_confidence (папку НЕ создавать).
  */
 export function pickPlate(
   candidates: readonly OcrCandidate[],
@@ -57,9 +71,11 @@ export function pickPlate(
     .map(c => ({
       res: formatPlate(digitsOnly(c.text)),
       confidence: c.confidence,
+      area: c.boxArea ?? 0,
+      top: c.boxTop ?? 0,
     }))
-    .filter((c): c is { res: Extract<PlateResult, { ok: true }>; confidence: number } => c.res.ok)
-    .sort((a, b) => b.confidence - a.confidence);
+    .filter((c): c is ScoredCandidate => c.res.ok)
+    .sort((a, b) => b.area - a.area || b.top - a.top || b.confidence - a.confidence);
 
   const best = parsed[0];
   if (best === undefined) {
