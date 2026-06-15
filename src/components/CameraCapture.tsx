@@ -29,11 +29,18 @@ import { APP_CONFIG } from '../config';
 export type CaptureMode = 'photo' | 'video';
 
 interface Props {
+  /** Initial capture mode. */
   mode: CaptureMode;
   /** Показать рамку-подсказку пропорций номера (для первого фото). */
   showPlateFrame?: boolean;
+  /** Show a Фото/Видео toggle and let the user switch mode without leaving. */
+  allowModeSwitch?: boolean;
+  /** Small banner with what's already captured (e.g. "3 фото, 1 видео"). */
+  counterText?: string;
   onPhoto?: (path: string) => void;
   onVideo?: (path: string, durationSec: number) => void;
+  /** Persistent mode: show a "Готово" button to finish capturing. */
+  onDone?: () => void;
   onCancel: () => void;
 }
 
@@ -46,8 +53,11 @@ function mmss(totalSec: number): string {
 export function CameraCapture({
   mode,
   showPlateFrame = false,
+  allowModeSwitch = false,
+  counterText,
   onPhoto,
   onVideo,
+  onDone,
   onCancel,
 }: Props): React.JSX.Element {
   const device = useCameraDevice('back');
@@ -55,17 +65,18 @@ export function CameraCapture({
   const mic = useMicrophonePermission();
   const camera = useRef<Camera>(null);
 
+  const [currentMode, setCurrentMode] = useState<CaptureMode>(mode);
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Запросить разрешения при монтировании.
+  // Запросить разрешения при монтировании (микрофон — если видео возможно).
   useEffect(() => {
     if (!hasPermission) {
       requestPermission().catch(() => undefined);
     }
-    if (mode === 'video' && !mic.hasPermission) {
+    if ((mode === 'video' || allowModeSwitch) && !mic.hasPermission) {
       mic.requestPermission().catch(() => undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,9 +191,9 @@ export function CameraCapture({
         device={device}
         format={format}
         isActive={true}
-        photo={mode === 'photo'}
-        video={mode === 'video'}
-        audio={mode === 'video'}
+        photo={currentMode === 'photo'}
+        video={currentMode === 'video'}
+        audio={currentMode === 'video'}
       />
 
       {showPlateFrame && (
@@ -196,6 +207,14 @@ export function CameraCapture({
         </View>
       )}
 
+      {counterText !== undefined && counterText.length > 0 && (
+        <View style={styles.counterBanner} pointerEvents="none">
+          <Text testID="capture-counter" style={styles.counterText}>
+            {counterText}
+          </Text>
+        </View>
+      )}
+
       {recording && (
         <View style={styles.recBadge} pointerEvents="none">
           <Text style={styles.recDot}>●</Text>
@@ -203,12 +222,33 @@ export function CameraCapture({
         </View>
       )}
 
+      {allowModeSwitch && !recording && (
+        <View style={styles.modeToggle}>
+          <Pressable
+            testID="mode-photo"
+            onPress={() => setCurrentMode('photo')}
+            style={[styles.modeBtn, currentMode === 'photo' && styles.modeBtnActive]}>
+            <Text style={[styles.modeText, currentMode === 'photo' && styles.modeTextActive]}>
+              📷 Фото
+            </Text>
+          </Pressable>
+          <Pressable
+            testID="mode-video"
+            onPress={() => setCurrentMode('video')}
+            style={[styles.modeBtn, currentMode === 'video' && styles.modeBtnActive]}>
+            <Text style={[styles.modeText, currentMode === 'video' && styles.modeTextActive]}>
+              🎥 Видео
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
       <View style={styles.controls}>
-        <Pressable onPress={onCancel} style={styles.sideBtn}>
+        <Pressable onPress={onCancel} style={styles.sideBtn} disabled={recording}>
           <Text style={styles.sideText}>Отмена</Text>
         </Pressable>
 
-        {mode === 'photo' ? (
+        {currentMode === 'photo' ? (
           <Pressable testID="shutter" onPress={takePhoto} style={styles.shutter}>
             {busy ? <ActivityIndicator color="#111" /> : <View style={styles.shutterInner} />}
           </Pressable>
@@ -221,7 +261,17 @@ export function CameraCapture({
           </Pressable>
         )}
 
-        <View style={styles.sideBtn} />
+        {onDone !== undefined ? (
+          <Pressable
+            testID="capture-done"
+            onPress={onDone}
+            style={styles.sideBtn}
+            disabled={recording}>
+            <Text style={[styles.sideText, styles.doneText]}>Готово</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.sideBtn} />
+        )}
       </View>
     </View>
   );
@@ -264,6 +314,30 @@ const styles = StyleSheet.create({
   },
   recDot: { color: '#ff5252', fontSize: 14, marginRight: 8 },
   recTime: { color: '#fff', fontSize: 16, fontVariant: ['tabular-nums'] },
+  counterBanner: {
+    position: 'absolute',
+    top: 48,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  counterText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  modeToggle: {
+    position: 'absolute',
+    bottom: 130,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 22,
+    padding: 4,
+  },
+  modeBtn: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 18 },
+  modeBtnActive: { backgroundColor: '#fff' },
+  modeText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  modeTextActive: { color: '#111' },
+  doneText: { color: '#4caf50', fontWeight: '700' },
   controls: {
     position: 'absolute',
     bottom: 40,

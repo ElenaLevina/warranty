@@ -6,7 +6,6 @@ import type { RootStackParamList } from '../navigation/types';
 import { useServices, useSessionStore, useSessionActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { UploadBadge } from '../components/UploadBadge';
-import { CameraCapture, type CaptureMode } from '../components/CameraCapture';
 import { FEATURES } from '../app/featureFlags';
 import type { UploadStatus } from '../types';
 
@@ -21,7 +20,6 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const uploads = useSessionStore(s => s.uploads);
   const phase = useSessionStore(s => s.phase);
   const [description, setDescription] = useState(active?.description ?? '');
-  const [cameraMode, setCameraMode] = useState<CaptureMode | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   if (active === null) {
@@ -32,24 +30,6 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
     );
   }
 
-  // Реальная камера: полноэкранный оверлей для фото/видео.
-  if (cameraMode !== null && FEATURES.realCamera) {
-    return (
-      <CameraCapture
-        mode={cameraMode}
-        onPhoto={async path => {
-          setCameraMode(null);
-          await actions.addPhoto(path);
-        }}
-        onVideo={async (path, durationSec) => {
-          setCameraMode(null);
-          await actions.addVideo(path, durationSec);
-        }}
-        onCancel={() => setCameraMode(null)}
-      />
-    );
-  }
-
   const files = active.files;
   const photoCount = files.filter(f => f.type === 'photo').length;
   const videoCount = files.filter(f => f.type === 'video').length;
@@ -57,7 +37,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
   const onPhoto = async (): Promise<void> => {
     if (FEATURES.realCamera) {
-      setCameraMode('photo');
+      navigation.navigate('Capture', { caseId: active.case_id, initialMode: 'photo' });
       return;
     }
     const path = await services.camera.capturePhoto();
@@ -66,7 +46,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
   const onVideo = async (): Promise<void> => {
     if (FEATURES.realCamera) {
-      setCameraMode('video');
+      navigation.navigate('Capture', { caseId: active.case_id, initialMode: 'video' });
       return;
     }
     const clip = await services.camera.captureVideo(DEV_VIDEO_DURATION_SEC);

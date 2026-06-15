@@ -10,6 +10,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { StartScreen } from '../screens/StartScreen';
 import { PlateCaptureScreen } from '../screens/PlateCaptureScreen';
+import { CaptureScreen } from '../screens/CaptureScreen';
 import { ActiveSessionScreen } from '../screens/ActiveSessionScreen';
 import { SessionCompleteScreen } from '../screens/SessionCompleteScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
@@ -24,6 +25,7 @@ function AppStack(): React.JSX.Element {
     <Stack.Navigator initialRouteName="Start">
       <Stack.Screen name="Start" component={StartScreen} options={{ headerShown: false }} />
       <Stack.Screen name="PlateCapture" component={PlateCaptureScreen} options={{ title: 'Номер авто' }} />
+      <Stack.Screen name="Capture" component={CaptureScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="ActiveSession"
         component={ActiveSessionScreen}

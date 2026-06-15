@@ -52,7 +52,13 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
     }
     try {
       const caseId = await actions.startCase(result.plate, tmpPath);
-      navigation.replace('ActiveSession', { caseId });
+      // Real camera: go straight into the persistent capture screen.
+      // Dev/emulator: go to the session (capture happens via dev buttons there).
+      if (FEATURES.realCamera) {
+        navigation.replace('Capture', { caseId, initialMode: 'photo' });
+      } else {
+        navigation.replace('ActiveSession', { caseId });
+      }
     } catch (e) {
       Alert.alert('Не удалось открыть сессию', e instanceof Error ? e.message : String(e));
     }
