@@ -13,4 +13,8 @@ export * from './auth/authService';
 export * from './device/deviceService';
 export * from './storage/storageIndex';
 export * from './upload/uploadService';
+export * from './upload/uploadConfig';
+export * from './upload/uploadTransport';
+export * from './upload/httpUploadService';
+export * from './upload/rnfsHttpTransport';
 export * from './notify/notifyService';

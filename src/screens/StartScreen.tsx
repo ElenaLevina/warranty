@@ -37,15 +37,20 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
             {mechanic.login}
           </Text>
         )}
-        <Pressable
-          testID="lock-app"
-          onPress={() => {
-            actions.leaveActive();
-            authActions.lock();
-          }}
-          hitSlop={8}>
-          <Text style={styles.lock}>Выйти</Text>
-        </Pressable>
+        <View style={styles.topActions}>
+          <Pressable testID="open-settings" onPress={() => navigation.navigate('Settings')} hitSlop={8}>
+            <Text style={styles.settings}>⚙ Настройки</Text>
+          </Pressable>
+          <Pressable
+            testID="lock-app"
+            onPress={() => {
+              actions.leaveActive();
+              authActions.lock();
+            }}
+            hitSlop={8}>
+            <Text style={styles.lock}>Выйти</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.header}>
@@ -88,7 +93,9 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 18, marginLeft: 'auto' },
   mechanic: { fontSize: 14, color: '#455a64', fontWeight: '600' },
+  settings: { fontSize: 14, color: '#1565c0', fontWeight: '600' },
   lock: { fontSize: 14, color: '#1565c0', fontWeight: '600' },
   header: { alignItems: 'center', marginTop: 24 },
   logo: { fontSize: 34, fontWeight: '800', color: '#1565c0' },

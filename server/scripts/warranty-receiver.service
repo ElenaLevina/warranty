@@ -1,0 +1,21 @@
+# systemd unit for the Warranty receiver (Linux).
+# Install:
+#   sudo cp warranty-receiver /usr/local/bin/
+#   sudo cp warranty-receiver.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now warranty-receiver
+# Edit the paths/token below before installing.
+
+[Unit]
+Description=Warranty receiver (LAN case file intake)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/warranty-receiver -dir /data/warranty-cases -token CHANGE_ME -addr :8080
+Restart=always
+RestartSec=5
+User=warranty
+Group=warranty
+
+[Install]
+WantedBy=multi-user.target

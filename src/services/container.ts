@@ -15,6 +15,9 @@ import { FilesService } from './files/filesService';
 import { PassthroughCryptoService, type CryptoService } from './crypto/cryptoService';
 import { MmkvStorageIndex, type StorageIndex } from './storage/storageIndex';
 import { StubUploadService, type UploadService } from './upload/uploadService';
+import { HttpUploadService } from './upload/httpUploadService';
+import { MmkvUploadConfig, type UploadConfig } from './upload/uploadConfig';
+import { RnfsHttpTransport } from './upload/rnfsHttpTransport';
 import { StubNotifyService, type NotifyService, type NotifySink } from './notify/notifyService';
 import { MockOcrService, type OcrService } from './ocr/ocrService';
 import { DevCameraService, type CameraService } from './camera/cameraService';
@@ -45,6 +48,7 @@ export interface AppServices {
   camera: CameraService;
   auth: AuthService;
   device: DeviceService;
+  uploadConfig: UploadConfig;
 }
 
 export interface RealServicesOptions {
@@ -65,13 +69,22 @@ export function createRealServices(opts: RealServicesOptions): AppServices {
   const crypto = opts.native?.crypto ?? new PassthroughCryptoService(fs);
   const files = new FilesService(fs, crypto, opts.casesRoot);
   const index = new MmkvStorageIndex(opts.indexEncryptionKey);
-  const upload = new StubUploadService(index);
+  const uploadConfig = new MmkvUploadConfig(opts.indexEncryptionKey);
+  // Real LAN upload to the PC receiver; no-ops until configured/enabled in Settings.
+  const upload = new HttpUploadService({
+    config: uploadConfig,
+    index,
+    crypto,
+    fs,
+    transport: new RnfsHttpTransport(),
+    casesRoot: opts.casesRoot,
+  });
   const notify = new StubNotifyService(opts.notifySink);
   const ocr = opts.native?.ocr ?? new MockOcrService(opts.ocrScript);
   const camera = new DevCameraService(fs, opts.tmpDir);
   const auth = new MmkvAuthService(opts.indexEncryptionKey);
   const device = new MmkvDeviceService(opts.indexEncryptionKey);
-  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device };
+  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device, uploadConfig };
 }
 
 export interface TestServicesOptions {
@@ -95,5 +108,6 @@ export function createTestServices(opts: TestServicesOptions = {}): AppServices 
   const camera = new DevCameraService(fs, '/data/tmp');
   const auth = new MmkvAuthService();
   const device = new MmkvDeviceService();
-  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device };
+  const uploadConfig = new MmkvUploadConfig();
+  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device, uploadConfig };
 }

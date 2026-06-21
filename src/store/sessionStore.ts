@@ -29,6 +29,8 @@ export interface SessionState {
   addVideo(tmpPath: string, durationSec: number): Promise<void>;
   setDescription(text: string): Promise<void>;
   finish(): Promise<void>;
+  /** Retry the upload queue (called on network regained). */
+  processUploads(): Promise<void>;
   leaveActive(): void;
 }
 
@@ -81,15 +83,35 @@ export function createSessionStore(services: AppServices): SessionStore {
     }
 
     async function enqueueLatest(caseId: string, plateNumber: string, fileName: string): Promise<void> {
+      const filePath = `${caseId}/${fileName}`;
       await upload.enqueue({
-        filePath: `${caseId}/${fileName}`,
+        filePath,
         plateNumber,
         fileName,
         status: 'pending',
         attempts: 0,
         enqueuedAt: new Date().toISOString(),
       });
-      set({ uploads: { ...get().uploads, [fileName]: 'pending' } });
+      // Reflect the real status after the upload attempt (uploaded/error/pending).
+      const status = index.getQueue().find(q => q.filePath === filePath)?.status ?? 'pending';
+      set({ uploads: { ...get().uploads, [fileName]: status } });
+    }
+
+    /** Refresh the active case's upload badges from the queue index. */
+    function syncUploads(): void {
+      const active = get().active;
+      if (active === null) {
+        return;
+      }
+      const queue = index.getQueue();
+      const next: Record<string, UploadStatus> = { ...get().uploads };
+      for (const f of active.files) {
+        const q = queue.find(i => i.filePath === `${active.case_id}/${f.name}`);
+        if (q !== undefined) {
+          next[f.name] = q.status;
+        }
+      }
+      set({ uploads: next });
     }
 
     return {
@@ -187,8 +209,19 @@ export function createSessionStore(services: AppServices): SessionStore {
         await run(async () => {
           const closed = await files.closeCase(active.case_id);
           notify.emit({ kind: 'caseClosed', plate: active.plate_number, fileCount: closed.files.length });
+          // Send remaining files + the session manifest to the PC receiver (§5.3/§7).
+          // Failures don't block closing — the queue retries later.
+          await upload.processQueue().catch(() => undefined);
+          await upload.completeCase(active.case_id, JSON.stringify(closed)).catch(() => undefined);
           set({ active: null, uploads: {} });
           await refreshOpenSessions(set);
+        });
+      },
+
+      async processUploads() {
+        await run(async () => {
+          await upload.processQueue();
+          syncUploads();
         });
       },
 

@@ -12,6 +12,10 @@ export interface UploadService {
   enqueue(item: UploadQueueItem): Promise<void>;
   /** Догрузить всю очередь (вызывается при восстановлении сети/старте). */
   processQueue(): Promise<void>;
+  /** Notify the receiver that a case is closed (sends session.json). */
+  completeCase(caseId: string, sessionJson: string): Promise<void>;
+  /** Check connectivity to the receiver (for the Settings screen). */
+  checkConnection(): Promise<boolean>;
 }
 
 export class StubUploadService implements UploadService {
@@ -24,5 +28,13 @@ export class StubUploadService implements UploadService {
 
   async processQueue(): Promise<void> {
     // local-only: no-op. Здесь будет цикл отправки при подключении бэкенда.
+  }
+
+  async completeCase(): Promise<void> {
+    // local-only: no-op.
+  }
+
+  async checkConnection(): Promise<boolean> {
+    return false; // no receiver configured
   }
 }

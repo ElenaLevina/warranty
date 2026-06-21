@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { StoreProvider } from './src/store/StoreProvider';
+import { NetworkUploadSync } from './src/app/NetworkUploadSync';
 import { createAppServices } from './src/app/createAppServices';
 import type { AppServices } from './src/services/container';
 
@@ -22,6 +23,7 @@ function App(): React.JSX.Element {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <StoreProvider services={servicesRef.current}>
+          <NetworkUploadSync />
           <RootNavigator />
         </StoreProvider>
       </SafeAreaProvider>

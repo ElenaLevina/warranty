@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  launchd agent for the Warranty receiver (macOS).
+  Install:
+    cp warranty-receiver-mac /usr/local/bin/warranty-receiver
+    cp com.warranty.receiver.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.warranty.receiver.plist
+  Edit the paths/token below before installing.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.warranty.receiver</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/warranty-receiver</string>
+        <string>-dir</string>
+        <string>/Users/Shared/warranty-cases</string>
+        <string>-token</string>
+        <string>CHANGE_ME</string>
+        <string>-addr</string>
+        <string>:8080</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
