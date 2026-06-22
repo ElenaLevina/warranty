@@ -82,12 +82,16 @@ export function CameraCapture({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Формат: приоритет фото ~8 МП и видео 1080p.
-  const format = useCameraFormat(device, [
-    { photoResolution: { width: 3264, height: 2448 } },
-    { videoResolution: { width: 1920, height: 1080 } },
-    { fps: 30 },
-  ]);
+  // Format per mode: photo uses the full-resolution (native 4:3) format so the
+  // aspect ratio matches the phone's stock camera; video targets 1080p. Mixing
+  // both constraints made vision-camera pick a wide cropped format (e.g.
+  // 4080x1884), which is why app photos looked unusually wide.
+  const format = useCameraFormat(
+    device,
+    currentMode === 'video'
+      ? [{ videoResolution: { width: 1920, height: 1080 } }, { fps: 30 }]
+      : [{ photoResolution: 'max' }],
+  );
 
   const clearTimer = useCallback(() => {
     if (timer.current !== null) {
