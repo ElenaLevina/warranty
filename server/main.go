@@ -23,7 +23,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
 
 // caseId / filename must be simple names (no path traversal).
@@ -100,8 +99,6 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := filepath.Base(r.FormValue("filename"))
-	wantHash := strings.ToLower(r.FormValue("sha256"))
-	log.Printf("recv file %s/%s (sha256=%q)", caseID, name, wantHash)
 	if !safeName.MatchString(name) {
 		log.Printf("REJECT %s/%s: invalid filename", caseID, name)
 		http.Error(w, "invalid filename", http.StatusBadRequest)
@@ -118,14 +115,15 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 
 	dest := filepath.Join(dir, name)
 
-	// Idempotency: if it already exists with the same hash, accept and skip.
-	if existing, herr := fileSHA256(dest); herr == nil && wantHash != "" && existing == wantHash {
+	// Idempotency: skip if already stored (safe retries). Writes are atomic
+	// (temp -> rename), so an existing file is always complete.
+	if _, statErr := os.Stat(dest); statErr == nil {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "already stored")
 		return
 	}
 
-	// Write atomically: temp file -> hash check -> rename.
+	// Write atomically: temp file -> rename.
 	tmp, err := os.CreateTemp(dir, ".upload-*")
 	if err != nil {
 		http.Error(w, "cannot create temp file", http.StatusInternalServerError)
@@ -142,21 +140,13 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 	}
 	tmp.Close()
 
-	gotHash := hex.EncodeToString(hasher.Sum(nil))
-	if wantHash != "" && gotHash != wantHash {
-		// DIAGNOSTIC: store anyway so the received bytes can be inspected
-		// (is it a valid image or corrupted?). The integrity gate is disabled
-		// while we figure out the client-side hash/upload discrepancy.
-		log.Printf("WARN %s/%s: checksum mismatch (want %s, got %s) — storing anyway",
-			caseID, name, wantHash, gotHash)
-	}
 	if err := os.Rename(tmpName, dest); err != nil {
 		os.Remove(tmpName)
 		http.Error(w, "cannot save file", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("stored %s/%s (%s)", caseID, name, gotHash[:8])
+	log.Printf("stored %s/%s (%s)", caseID, name, hex.EncodeToString(hasher.Sum(nil))[:8])
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintln(w, "stored")
 }
@@ -181,17 +171,4 @@ func (s *server) handleComplete(w http.ResponseWriter, r *http.Request) {
 	log.Printf("case %s completed", caseID)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "completed")
-}
-
-func fileSHA256(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }

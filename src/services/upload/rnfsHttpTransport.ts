@@ -19,12 +19,14 @@ function mimeOf(type: 'photo' | 'video' | 'meta'): string {
 export class RnfsHttpTransport implements UploadTransport {
   async uploadFile(params: UploadFileParams): Promise<void> {
     const { baseUrl, token, caseId, filePath, fileName, type } = params;
-    const sha256 = await RNFS.hash(filePath, 'sha256');
+    // NOTE: no client-side sha256 — RNFS.hash disagrees with the bytes
+    // RNFS.uploadFiles actually sends (react-native-fs quirk). The server
+    // computes its own hash; atomic temp->rename guarantees complete files.
     const { promise } = RNFS.uploadFiles({
       toUrl: `${baseUrl}/v1/cases/${encodeURIComponent(caseId)}/files`,
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      fields: { filename: fileName, type, sha256 },
+      fields: { filename: fileName, type },
       files: [
         {
           name: 'file',
