@@ -43,18 +43,18 @@ export function createSessionStore(services: AppServices): SessionStore {
   // (closeCase happens up front, but uploads afterwards can be slow).
   let finishing = false;
 
-  /** Current mechanic id; throws if the app is not unlocked. */
+  /** Current user id (used as mechanic_id); throws if the app is not unlocked. */
   function requireMechanicId(): string {
-    const identity = auth.current();
-    if (identity === null) {
-      throw new Error('Нет авторизованного механика');
+    const user = auth.current();
+    if (user === null) {
+      throw new Error('No authenticated user');
     }
-    return identity.mechanicId;
+    return user.id;
   }
 
   async function refreshOpenSessions(set: (p: Partial<SessionState>) => void): Promise<void> {
-    // Isolation: only the current mechanic's open sessions are listed (§8).
-    const open = await files.listOpenSessions(auth.current()?.mechanicId);
+    // Isolation: only the current user's open sessions are listed (§8).
+    const open = await files.listOpenSessions(auth.current()?.id);
     index.setOpenSessions(open);
     set({ openSessions: open });
   }

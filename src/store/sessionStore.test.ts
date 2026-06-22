@@ -25,8 +25,15 @@ function harness(ocrScript: OcrResult): Harness {
     now: fixedClock(),
     notifySink: (_msg, event) => events.push(event),
   });
-  // A mechanic must be unlocked before sessions can be created.
-  services.auth.register('tester', '1234');
+  // A user must be logged in before sessions can be created.
+  const u = services.auth.addUser({
+    firstName: 'Test',
+    lastName: 'User',
+    role: 'mechanic',
+    language: 'en',
+    pin: '1234',
+  });
+  services.auth.login(u.id, '1234');
   const store = createSessionStore(services);
   return { store, services, events };
 }

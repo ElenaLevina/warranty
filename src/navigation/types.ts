@@ -2,6 +2,10 @@
 export type RootStackParamList = {
   Start: undefined;
   Settings: undefined;
+  /** Admin-only: list of provisioned users. */
+  Users: undefined;
+  /** Admin-only: create (no id) or edit (with id) a user. */
+  UserEdit: { userId?: string };
   PlateCapture: undefined;
   /** Persistent capture screen (multi photo/video with a Фото/Видео toggle). */
   Capture: { caseId: string; initialMode?: 'photo' | 'video' };

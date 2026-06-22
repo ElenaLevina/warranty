@@ -21,7 +21,7 @@ import { RnfsHttpTransport } from './upload/rnfsHttpTransport';
 import { StubNotifyService, type NotifyService, type NotifySink } from './notify/notifyService';
 import { MockOcrService, type OcrService } from './ocr/ocrService';
 import { DevCameraService, type CameraService } from './camera/cameraService';
-import { MmkvAuthService, type AuthService } from './auth/authService';
+import { createMmkvAuthService, type AuthService } from './auth/authService';
 import { MmkvDeviceService, type DeviceService } from './device/deviceService';
 import type { OcrResult } from '../types';
 
@@ -82,7 +82,7 @@ export function createRealServices(opts: RealServicesOptions): AppServices {
   const notify = new StubNotifyService(opts.notifySink);
   const ocr = opts.native?.ocr ?? new MockOcrService(opts.ocrScript);
   const camera = new DevCameraService(fs, opts.tmpDir);
-  const auth = new MmkvAuthService(opts.indexEncryptionKey);
+  const auth = createMmkvAuthService(opts.indexEncryptionKey);
   const device = new MmkvDeviceService(opts.indexEncryptionKey);
   return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device, uploadConfig };
 }
@@ -106,7 +106,7 @@ export function createTestServices(opts: TestServicesOptions = {}): AppServices 
   const notify = new StubNotifyService(opts.notifySink ?? (() => {}));
   const ocr = new MockOcrService(opts.ocrScript ?? { candidates: [] });
   const camera = new DevCameraService(fs, '/data/tmp');
-  const auth = new MmkvAuthService();
+  const auth = createMmkvAuthService();
   const device = new MmkvDeviceService();
   const uploadConfig = new MmkvUploadConfig();
   return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device, uploadConfig };

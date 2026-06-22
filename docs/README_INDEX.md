@@ -25,14 +25,19 @@
 | 6 | Реальный нативный мост ML Kit (на устройстве) | 🧩 скелет готов, собирать на устройстве |
 | 7 | Шифрование at-rest (Android Keystore, на устройстве) | ✅ включено (FEATURES.nativeCrypto=true), проверять на устройстве |
 
-### Авторизация (§8) — готово
+### Авторизация (§8) — готово (multi-user, admin-provisioned)
 
-Локальный вход без бэкенда: регистрация при первом запуске (логин + PIN), PIN-разблокировка
-на каждом запуске, «Сменить механика». `mechanic_id` берётся из auth; список сессий
-изолируется по механику (`FilesService.listOpenSessions(mechanicId)`). PIN — salted SHA-256
-в зашифрованном MMKV. Биометрия — за интерфейсом `AuthService`, отдельным шагом.
-Файлы: `src/services/auth/*`, `src/store/authStore.ts`, `src/screens/{Register,Lock}Screen.tsx`,
-гейт в `RootNavigator`.
+Локальный вход без бэкенда по списку пользователей, который ведёт администратор на
+устройстве. Пользователь: имя, фамилия, роль (`admin` | `mechanic`), язык интерфейса, PIN.
+Первый запуск (`no-users`) → создание администратора; далее вход — выбор пользователя из
+списка + PIN (имена не вводятся). Роль `admin` открывает экран управления пользователями.
+`mechanic_id = user.id`; список сессий изолируется по пользователю
+(`FilesService.listOpenSessions(id)`). PIN — salted SHA-256 в зашифрованном MMKV. Язык
+применяется по пользователю при входе (default English). Биометрия — за интерфейсом
+`AuthService`, отдельным шагом.
+Файлы: `src/services/users/userService.ts`, `src/services/auth/authService.ts`,
+`src/store/authStore.ts`, `src/screens/{AdminSetup,UserPicker,Users,UserEdit}Screen.tsx`,
+`src/i18n/*`, гейт в `RootNavigator`.
 
 ### Проверки среза (Фазы 0–5)
 

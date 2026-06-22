@@ -1,92 +1,119 @@
 /**
- * Auth store (Zustand) — UI projection of the local authentication state.
- * Backed by AuthService (local-only PIN). Implemented as a vanilla-store factory
- * so it can be unit-tested without React.
+ * Auth store (Zustand) — UI projection of the local authentication state over
+ * the admin-provisioned user list (AuthService / UserService).
+ *
+ * Statuses:
+ *  - 'no-users'      : empty list -> create the first administrator.
+ *  - 'locked'        : users exist -> pick a user and enter the PIN.
+ *  - 'authenticated' : a user is logged in.
+ *
+ * Errors are i18n keys; screens render them via t(error). On login the current
+ * user's interface language is applied (default English).
+ *
+ * Implemented as a vanilla-store factory so it can be unit-tested without React.
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { AuthService, MechanicIdentity } from '../services/auth/authService';
+import type { AuthService, User } from '../services/auth/authService';
+import { isValidPin } from '../services/users/userService';
+import type { AppLanguage } from '../i18n/languageStore';
+import { setAppLanguage } from '../i18n';
 
-export type AuthStatus = 'unregistered' | 'locked' | 'authenticated';
+export type AuthStatus = 'no-users' | 'locked' | 'authenticated';
 
-/** PIN must be 4–6 digits. */
-const PIN_RE = /^\d{4,6}$/;
+/** Fields entered on the first-launch administrator setup screen. */
+export interface AdminSetupInput {
+  firstName: string;
+  lastName: string;
+  language: AppLanguage;
+  pin: string;
+  pinConfirm: string;
+}
 
 export interface AuthState {
   status: AuthStatus;
-  current: MechanicIdentity | null;
-  /** Login of the registered mechanic, shown on the lock screen. */
-  registeredLogin: string | null;
+  /** Provisioned users (for the picker). */
+  users: User[];
+  current: User | null;
+  /** i18n key of the last error, or null. */
   error: string | null;
 
-  /** Resolve the initial status from persisted registration. */
+  /** Resolve the initial status from the persisted user list. */
   init(): void;
-  register(login: string, pin: string, pinConfirm: string): boolean;
-  unlock(pin: string): boolean;
+  /** Reload the user list (after admin changes). */
+  refreshUsers(): void;
+  /** First launch: create the administrator and log in. */
+  createFirstAdmin(input: AdminSetupInput): boolean;
+  /** Log in as the selected user with their PIN. */
+  login(userId: string, pin: string): boolean;
+  /** Log out (return to the picker). */
   lock(): void;
-  /** Employee switch: clear registration and return to the register screen. */
-  switchUser(): void;
 }
 
 export type AuthStore = StoreApi<AuthState>;
 
+function statusFor(auth: AuthService): AuthStatus {
+  return auth.hasUsers() ? 'locked' : 'no-users';
+}
+
 export function createAuthStore(auth: AuthService): AuthStore {
   return createStore<AuthState>((set) => ({
-    status: auth.isRegistered() ? 'locked' : 'unregistered',
+    status: statusFor(auth),
+    users: auth.users(),
     current: null,
-    registeredLogin: auth.registeredLogin(),
     error: null,
 
     init() {
-      set({
-        status: auth.isRegistered() ? 'locked' : 'unregistered',
-        current: null,
-        registeredLogin: auth.registeredLogin(),
-        error: null,
-      });
+      set({ status: statusFor(auth), users: auth.users(), current: null, error: null });
     },
 
-    register(login, pin, pinConfirm) {
-      // Errors are i18n keys; the screen renders them via t(error).
-      if (login.trim().length === 0) {
-        set({ error: 'auth.enterLogin' });
+    refreshUsers() {
+      set({ users: auth.users() });
+    },
+
+    createFirstAdmin(input) {
+      const firstName = input.firstName.trim();
+      const lastName = input.lastName.trim();
+      if (firstName.length === 0 || lastName.length === 0) {
+        set({ error: 'auth.nameRequired' });
         return false;
       }
-      if (!PIN_RE.test(pin)) {
+      if (!isValidPin(input.pin)) {
         set({ error: 'auth.pinFormat' });
         return false;
       }
-      if (pin !== pinConfirm) {
+      if (input.pin !== input.pinConfirm) {
         set({ error: 'auth.pinMismatch' });
         return false;
       }
-      const identity = auth.register(login, pin);
-      set({
-        status: 'authenticated',
-        current: identity,
-        registeredLogin: identity.login,
-        error: null,
+      const user = auth.addUser({
+        firstName,
+        lastName,
+        role: 'admin',
+        language: input.language,
+        pin: input.pin,
       });
+      auth.login(user.id, input.pin); // set the live session
+      setAppLanguage(input.language);
+      set({ status: 'authenticated', current: user, users: auth.users(), error: null });
       return true;
     },
 
-    unlock(pin) {
-      const identity = auth.unlock(pin);
-      if (identity === null) {
+    login(userId, pin) {
+      const user = auth.login(userId, pin);
+      if (user === null) {
         set({ error: 'auth.wrongPin' });
         return false;
       }
-      set({ status: 'authenticated', current: identity, error: null });
+      setAppLanguage(user.language);
+      set({ status: 'authenticated', current: user, error: null });
       return true;
     },
 
     lock() {
       auth.lock();
-      set({ status: 'locked', current: null, error: null });
-    },
-
-    switchUser() {
-      auth.reset();
-      set({ status: 'unregistered', current: null, registeredLogin: null, error: null });
+      set({ status: statusFor(auth), current: null, users: auth.users(), error: null });
     },
   }));
 }
+
+export type { AppLanguage };

@@ -36,10 +36,15 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
       <View style={styles.topBar}>
         {mechanic !== null && (
           <Text testID="current-mechanic" style={styles.mechanic}>
-            {mechanic.login}
+            {mechanic.firstName} {mechanic.lastName}
           </Text>
         )}
         <View style={styles.topActions}>
+          {mechanic?.role === 'admin' && (
+            <Pressable testID="open-users" onPress={() => navigation.navigate('Users')} hitSlop={8}>
+              <Text style={styles.settings}>👥 {t('auth.manageUsers')}</Text>
+            </Pressable>
+          )}
           <Pressable testID="open-settings" onPress={() => navigation.navigate('Settings')} hitSlop={8}>
             <Text style={styles.settings}>⚙ {t('start.settings')}</Text>
           </Pressable>

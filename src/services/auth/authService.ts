@@ -1,124 +1,91 @@
 /**
- * AuthService — local-only authentication (no backend in v1.0).
+ * AuthService — local-only authentication over an admin-provisioned user list.
  *
  * Model (per product decision):
- *  - First launch: register a mechanic (login + PIN). mechanicId is derived
- *    locally from the login.
- *  - Next launches: app is "locked"; unlock with the PIN.
- *  - Employee switch: reset() clears the stored registration so a different
- *    mechanic can register. Cases on disk are isolated by mechanic_id (filtered
- *    in FilesService.listOpenSessions), so a new mechanic never sees old cases.
+ *  - An administrator maintains the user list (UserService): first/last name,
+ *    role (admin | mechanic), interface language, PIN.
+ *  - First launch (no users): create the first administrator.
+ *  - Login: pick a user from the list and enter the PIN the admin assigned.
+ *  - The logged-in user's `id` is stored into session.json as mechanic_id, so
+ *    cases stay isolated per user (filtered in FilesService.listOpenSessions).
  *
- * PIN is never stored in plaintext: we keep a per-install random salt and the
- * salted SHA-256 hash, inside an encrypted MMKV instance (defense in depth).
- * Biometrics are intentionally out of scope here and can be added behind this
- * same interface later.
+ * This service is a thin session facade over UserService: it delegates the
+ * user-list operations and additionally holds the currently logged-in user.
  */
-import { sha256 } from 'js-sha256';
-import { MMKV } from 'react-native-mmkv';
+import { MmkvUserService, type User, type UserInput, type UserService } from '../users/userService';
 
-export interface MechanicIdentity {
-  /** Stable id stored into session.json (e.g. "user_1a2b3c4d"). */
-  mechanicId: string;
-  /** Human-readable login the mechanic typed at registration. */
-  login: string;
-}
+export type { User, UserInput, UserRole } from '../users/userService';
 
 export interface AuthService {
-  /** True if a mechanic has been registered on this device. */
-  isRegistered(): boolean;
-  /** Register a mechanic and return the new identity (also unlocks). */
-  register(login: string, pin: string): MechanicIdentity;
-  /** Validate the PIN. Returns the identity on success, null on mismatch. */
-  unlock(pin: string): MechanicIdentity | null;
-  /** Currently unlocked identity, or null when locked/unregistered. */
-  current(): MechanicIdentity | null;
-  /** Registered login (visible on the lock screen even before unlocking). */
-  registeredLogin(): string | null;
-  /** Lock the app (keeps the registration, clears the in-memory session). */
+  /** All provisioned users (without secrets), for the picker / admin screen. */
+  users(): User[];
+  /** True if at least one user has been provisioned. */
+  hasUsers(): boolean;
+  /** Provision a new user (admin). */
+  addUser(input: UserInput): User;
+  /** Edit a user (admin). */
+  updateUser(id: string, input: UserInput): User | null;
+  /** Remove a user (admin). */
+  removeUser(id: string): void;
+  /** Log in: verify the user's PIN and set the current session on success. */
+  login(userId: string, pin: string): User | null;
+  /** Currently logged-in user, or null when locked. */
+  current(): User | null;
+  /** Log out (clear the in-memory session; keeps the user list). */
   lock(): void;
-  /** Clear the stored registration (employee switch / fresh start). */
-  reset(): void;
 }
 
-const K_LOGIN = 'auth.login';
-const K_MECHANIC_ID = 'auth.mechanicId';
-const K_SALT = 'auth.salt';
-const K_PIN_HASH = 'auth.pinHash';
+export class LocalAuthService implements AuthService {
+  private session: User | null = null;
 
-/** Derive a stable mechanic id from a login string. */
-export function deriveMechanicId(login: string): string {
-  return `user_${sha256(login.trim().toLowerCase()).slice(0, 8)}`;
-}
+  constructor(private readonly userService: UserService) {}
 
-/** Generate a pseudo-random hex salt (local-only PIN threat model). */
-function makeSalt(seed: string): string {
-  return sha256(`${Date.now()}|${Math.random()}|${seed}`).slice(0, 16);
-}
-
-function hashPin(salt: string, pin: string): string {
-  return sha256(`${salt}:${pin}`);
-}
-
-export class MmkvAuthService implements AuthService {
-  private readonly store: MMKV;
-  private session: MechanicIdentity | null = null;
-
-  constructor(encryptionKey?: string, id = 'warranty-auth') {
-    this.store = new MMKV({
-      id,
-      ...(encryptionKey ? { encryptionKey } : {}),
-    });
+  users(): User[] {
+    return this.userService.list();
   }
 
-  isRegistered(): boolean {
-    return this.store.contains(K_PIN_HASH) && this.store.contains(K_MECHANIC_ID);
+  hasUsers(): boolean {
+    return this.userService.hasUsers();
   }
 
-  register(login: string, pin: string): MechanicIdentity {
-    const trimmed = login.trim();
-    const mechanicId = deriveMechanicId(trimmed);
-    const salt = makeSalt(trimmed);
-    this.store.set(K_LOGIN, trimmed);
-    this.store.set(K_MECHANIC_ID, mechanicId);
-    this.store.set(K_SALT, salt);
-    this.store.set(K_PIN_HASH, hashPin(salt, pin));
-    this.session = { mechanicId, login: trimmed };
-    return this.session;
+  addUser(input: UserInput): User {
+    return this.userService.add(input);
   }
 
-  unlock(pin: string): MechanicIdentity | null {
-    const salt = this.store.getString(K_SALT);
-    const expected = this.store.getString(K_PIN_HASH);
-    const mechanicId = this.store.getString(K_MECHANIC_ID);
-    const login = this.store.getString(K_LOGIN);
-    if (salt === undefined || expected === undefined || mechanicId === undefined || login === undefined) {
-      return null;
+  updateUser(id: string, input: UserInput): User | null {
+    const updated = this.userService.update(id, input);
+    // Keep the live session in sync if the current user was edited.
+    if (updated !== null && this.session?.id === id) {
+      this.session = updated;
     }
-    if (hashPin(salt, pin) !== expected) {
-      return null;
+    return updated;
+  }
+
+  removeUser(id: string): void {
+    this.userService.remove(id);
+    if (this.session?.id === id) {
+      this.session = null;
     }
-    this.session = { mechanicId, login };
-    return this.session;
   }
 
-  current(): MechanicIdentity | null {
-    return this.session;
+  login(userId: string, pin: string): User | null {
+    const user = this.userService.verifyPin(userId, pin);
+    if (user !== null) {
+      this.session = user;
+    }
+    return user;
   }
 
-  registeredLogin(): string | null {
-    return this.store.getString(K_LOGIN) ?? null;
+  current(): User | null {
+    return this.session;
   }
 
   lock(): void {
     this.session = null;
   }
+}
 
-  reset(): void {
-    this.session = null;
-    this.store.delete(K_LOGIN);
-    this.store.delete(K_MECHANIC_ID);
-    this.store.delete(K_SALT);
-    this.store.delete(K_PIN_HASH);
-  }
+/** Build a LocalAuthService backed by encrypted MMKV storage. */
+export function createMmkvAuthService(encryptionKey?: string): AuthService {
+  return new LocalAuthService(new MmkvUserService(encryptionKey));
 }
