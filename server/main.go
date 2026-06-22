@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 )
 
 // caseId / filename must be simple names (no path traversal).
@@ -37,6 +38,8 @@ func main() {
 	addr := flag.String("addr", ":8080", "listen address, e.g. :8080")
 	dir := flag.String("dir", "", "target folder for received cases (required)")
 	token := flag.String("token", "", "shared bearer token (required)")
+	certFile := flag.String("cert", "", "TLS certificate (PEM); enables HTTPS when set with -key")
+	keyFile := flag.String("key", "", "TLS private key (PEM)")
 	flag.Parse()
 
 	if *dir == "" || *token == "" {
@@ -52,8 +55,17 @@ func main() {
 	mux.HandleFunc("POST /v1/cases/{caseId}/files", s.auth(s.handleFile))
 	mux.HandleFunc("POST /v1/cases/{caseId}/complete", s.auth(s.handleComplete))
 
-	log.Printf("warranty-receiver listening on %s, saving to %s", *addr, *dir)
-	log.Fatal(http.ListenAndServe(*addr, mux))
+	tls := *certFile != "" && *keyFile != ""
+	scheme := "http"
+	if tls {
+		scheme = "https"
+	}
+	log.Printf("warranty-receiver listening on %s (%s), saving to %s", *addr, scheme, *dir)
+	if tls {
+		log.Fatal(http.ListenAndServeTLS(*addr, *certFile, *keyFile, mux))
+	} else {
+		log.Fatal(http.ListenAndServe(*addr, mux))
+	}
 }
 
 // auth wraps a handler with a constant-time bearer-token check.
@@ -104,6 +116,8 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid filename", http.StatusBadRequest)
 		return
 	}
+	// Declared file size (0 = unknown / skip the check).
+	declaredSize, _ := strconv.ParseInt(r.FormValue("size"), 10, 64)
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -131,7 +145,8 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 	}
 	tmpName := tmp.Name()
 	hasher := sha256.New()
-	if _, err := io.Copy(io.MultiWriter(tmp, hasher), file); err != nil {
+	written, err := io.Copy(io.MultiWriter(tmp, hasher), file)
+	if err != nil {
 		tmp.Close()
 		os.Remove(tmpName)
 		log.Printf("REJECT %s/%s: write failed: %v", caseID, name, err)
@@ -139,6 +154,15 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tmp.Close()
+
+	// Integrity: received byte count must match the declared size.
+	if declaredSize > 0 && written != declaredSize {
+		os.Remove(tmpName)
+		log.Printf("REJECT %s/%s: size mismatch (want %d, got %d) — incomplete upload",
+			caseID, name, declaredSize, written)
+		http.Error(w, "size mismatch", http.StatusBadRequest)
+		return
+	}
 
 	if err := os.Rename(tmpName, dest); err != nil {
 		os.Remove(tmpName)

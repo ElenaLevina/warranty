@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Warranty network security:
+   - cleartext HTTP is permitted (LAN receiver may run plain HTTP), and
+   - user-installed CA certificates are trusted, so a self-signed receiver cert
+     (installed on the phone as a CA) is accepted for https://<PC-IP>:<port>.
+  TLS is optional and per-deployment; see docs/upload.md.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
