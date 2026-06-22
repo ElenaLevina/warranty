@@ -67,8 +67,12 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           const plate = active.plate_number;
           const p = photoCount;
           const v = videoCount;
-          await actions.finish();
-          navigation.replace('SessionComplete', { plate, photoCount: p, videoCount: v });
+          try {
+            await actions.finish();
+            navigation.replace('SessionComplete', { plate, photoCount: p, videoCount: v });
+          } catch (e) {
+            Alert.alert('Не удалось завершить', e instanceof Error ? e.message : String(e));
+          }
         },
       },
     ]);
@@ -121,7 +125,13 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
         />
 
         <View style={styles.finish}>
-          <PrimaryButton testID="finish-session" title="ЗАКОНЧИЛ" variant="danger" onPress={finish} />
+          <PrimaryButton
+            testID="finish-session"
+            title="ЗАКОНЧИЛ"
+            variant="danger"
+            onPress={finish}
+            loading={phase === 'busy'}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

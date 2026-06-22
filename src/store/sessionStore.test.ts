@@ -102,6 +102,18 @@ describe('sessionStore — full lifecycle', () => {
     expect(store.getState().active?.case_id).toBe(caseId);
   });
 
+  it('finish is idempotent: a second finish does not throw and closes once', async () => {
+    const { store, services, events } = harness(okOcr);
+    await seedTmp(services);
+    await store.getState().startCase(PLATE, '/tmp/plate.jpg');
+
+    await store.getState().finish();
+    // Repeat tap after the session is already closed must be a no-op, not a throw.
+    await expect(store.getState().finish()).resolves.toBeUndefined();
+
+    expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(1);
+  });
+
   it('surfaces the READ ONLY invariant as an error after finish', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

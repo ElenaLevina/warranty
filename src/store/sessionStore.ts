@@ -39,6 +39,10 @@ export type SessionStore = StoreApi<SessionState>;
 export function createSessionStore(services: AppServices): SessionStore {
   const { files, index, upload, notify, ocr, auth, device, crypto, config } = services;
 
+  // Guard against a second "ЗАКОНЧИЛ" while the first finish is still running
+  // (closeCase happens up front, but uploads afterwards can be slow).
+  let finishing = false;
+
   /** Current mechanic id; throws if the app is not unlocked. */
   function requireMechanicId(): string {
     const identity = auth.current();
@@ -203,19 +207,31 @@ export function createSessionStore(services: AppServices): SessionStore {
 
       async finish() {
         const active = get().active;
-        if (active === null) {
-          throw new Error('Нет активной сессии');
+        // Idempotent: ignore repeat taps / no active session (avoids closing twice).
+        if (active === null || finishing) {
+          return;
         }
-        await run(async () => {
-          const closed = await files.closeCase(active.case_id);
-          notify.emit({ kind: 'caseClosed', plate: active.plate_number, fileCount: closed.files.length });
-          // Send remaining files + the session manifest to the PC receiver (§5.3/§7).
-          // Failures don't block closing — the queue retries later.
-          await upload.processQueue().catch(() => undefined);
-          await upload.completeCase(active.case_id, JSON.stringify(closed)).catch(() => undefined);
-          set({ active: null, uploads: {} });
-          await refreshOpenSessions(set);
-        });
+        finishing = true;
+        try {
+          await run(async () => {
+            const closed = await files.closeCase(active.case_id);
+            notify.emit({
+              kind: 'caseClosed',
+              plate: active.plate_number,
+              fileCount: closed.files.length,
+            });
+            // Clear the active session right after closing so the UI can't
+            // trigger a second close while uploads run.
+            set({ active: null, uploads: {} });
+            // Send remaining files + the session manifest to the PC receiver
+            // (§5.3/§7). Failures don't block closing — the queue retries later.
+            await upload.processQueue().catch(() => undefined);
+            await upload.completeCase(active.case_id, JSON.stringify(closed)).catch(() => undefined);
+            await refreshOpenSessions(set);
+          });
+        } finally {
+          finishing = false;
+        }
       },
 
       async processUploads() {
