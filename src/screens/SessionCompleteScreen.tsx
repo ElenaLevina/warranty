@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -8,6 +9,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 type Props = NativeStackScreenProps<RootStackParamList, 'SessionComplete'>;
 
 export function SessionCompleteScreen({ navigation, route }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const { plate, photoCount, videoCount } = route.params;
 
   return (
@@ -16,12 +18,12 @@ export function SessionCompleteScreen({ navigation, route }: Props): React.JSX.E
         <Text style={styles.check}>✓</Text>
         <Text style={styles.plate}>{plate}</Text>
         <Text testID="summary" style={styles.summary}>
-          Сохранено: {photoCount} фото, {videoCount} видео
+          {t('complete.saved', { photos: photoCount, videos: videoCount })}
         </Text>
       </View>
       <PrimaryButton
         testID="new-inspection"
-        title="Новый осмотр"
+        title={t('complete.newInspection')}
         // reset is robust: always lands on Start regardless of the current stack
         // (popToTop throws "no screen to go back to" in some flows).
         onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Start' }] })}

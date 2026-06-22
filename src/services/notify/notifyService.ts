@@ -2,7 +2,10 @@
  * NotifyService — уведомления механику (ТЗ §7). В срезе — стаб, который
  * прокидывает события в sink (тосты в UI / лог в тестах). Авто-уведомление
  * станции сервис-консультанта в v1.0 (local-only) — лишь логируется.
+ * Messages are localized via i18next (global instance).
  */
+import i18n from '../../i18n';
+
 export type NotifyEvent =
   | { kind: 'caseOpened'; plate: string }
   | { kind: 'fileUploaded'; plate: string }
@@ -18,13 +21,13 @@ export type NotifySink = (message: string, event: NotifyEvent) => void;
 function messageFor(event: NotifyEvent): string {
   switch (event.kind) {
     case 'caseOpened':
-      return `Кейс ${event.plate} открыт`;
+      return i18n.t('notify.caseOpened', { plate: event.plate });
     case 'fileUploaded':
       return ''; // тихое обновление счётчика
     case 'uploadError':
-      return 'Нет подключения. Файл сохранён локально';
+      return i18n.t('notify.uploadError');
     case 'caseClosed':
-      return `Кейс завершён. ${event.fileCount} файлов сохранено`;
+      return i18n.t('notify.caseClosed', { count: event.fileCount });
   }
 }
 

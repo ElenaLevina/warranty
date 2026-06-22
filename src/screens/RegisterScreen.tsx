@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore, useAuthActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
 
@@ -10,6 +11,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
  * to the main app stack (no manual navigation needed).
  */
 export function RegisterScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const error = useAuthStore(s => s.error);
   const actions = useAuthActions();
   const [login, setLogin] = useState('');
@@ -24,21 +26,21 @@ export function RegisterScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>🔧 Warranty</Text>
-        <Text style={styles.subtitle}>Регистрация механика</Text>
+        <Text style={styles.subtitle}>{t('auth.registerTitle')}</Text>
       </View>
 
       <View style={styles.form}>
-        <Text style={styles.label}>Логин / имя</Text>
+        <Text style={styles.label}>{t('auth.login')}</Text>
         <TextInput
           testID="login-input"
           style={styles.input}
-          placeholder="Например, ivan"
+          placeholder="ivan"
           autoCapitalize="none"
           value={login}
           onChangeText={setLogin}
         />
 
-        <Text style={styles.label}>PIN (4–6 цифр)</Text>
+        <Text style={styles.label}>{t('auth.pin')}</Text>
         <TextInput
           testID="pin-input"
           style={styles.input}
@@ -50,7 +52,7 @@ export function RegisterScreen(): React.JSX.Element {
           onChangeText={setPin}
         />
 
-        <Text style={styles.label}>Повторите PIN</Text>
+        <Text style={styles.label}>{t('auth.pinRepeat')}</Text>
         <TextInput
           testID="pin-confirm-input"
           style={styles.input}
@@ -64,12 +66,12 @@ export function RegisterScreen(): React.JSX.Element {
 
         {error !== null && (
           <Text testID="auth-error" style={styles.error}>
-            {error}
+            {t(error)}
           </Text>
         )}
 
         <View style={styles.cta}>
-          <PrimaryButton testID="register-submit" title="Зарегистрироваться" onPress={submit} />
+          <PrimaryButton testID="register-submit" title={t('auth.register')} onPress={submit} />
         </View>
       </View>
     </SafeAreaView>

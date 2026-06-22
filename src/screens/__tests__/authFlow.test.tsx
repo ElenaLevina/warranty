@@ -54,7 +54,8 @@ describe('RegisterScreen', () => {
     await act(async () => press(tree, 'register-submit'));
 
     expect(services.auth.isRegistered()).toBe(false);
-    expect(tree.root.findByProps({ testID: 'auth-error' }).props.children).toMatch(/совпад/i);
+    // Error is translated from the 'auth.pinMismatch' key (English under test).
+    expect(tree.root.findByProps({ testID: 'auth-error' }).props.children).toMatch(/match/i);
   });
 });
 

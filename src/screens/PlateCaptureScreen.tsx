@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useServices, useSessionActions, useSessionStore } from '../store/StoreProvider';
@@ -13,6 +14,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PlateCapture'>;
 type Phase = 'camera' | 'recognizing' | 'result';
 
 export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const services = useServices();
   const actions = useSessionActions();
   const lastOcrText = useSessionStore(s => s.lastOcrText);
@@ -62,7 +64,7 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
         navigation.replace('ActiveSession', { caseId });
       }
     } catch (e) {
-      Alert.alert('Не удалось открыть сессию', e instanceof Error ? e.message : String(e));
+      Alert.alert(t('plate.startFailedTitle'), e instanceof Error ? e.message : String(e));
     } finally {
       setConfirming(false);
     }
@@ -87,19 +89,17 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
       {phase === 'camera' && (
         <View style={styles.cameraArea}>
           <View style={styles.hintBlock}>
-            <Text style={styles.hint}>Сфотографируйте автомобиль</Text>
-            <Text style={styles.frameHint}>
-              Номер распознаётся автоматически в любом месте кадра
-            </Text>
+            <Text style={styles.hint}>{t('camera.shootCar')}</Text>
+            <Text style={styles.frameHint}>{t('camera.plateAnywhere')}</Text>
           </View>
-          <PrimaryButton testID="shutter" title="Снять" onPress={devCapture} />
+          <PrimaryButton testID="shutter" title={t('plate.shoot')} onPress={devCapture} />
         </View>
       )}
 
       {phase === 'recognizing' && (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#1565c0" />
-          <Text style={styles.hint}>Распознаём номер…</Text>
+          <Text style={styles.hint}>{t('plate.recognizing')}</Text>
         </View>
       )}
 
@@ -110,17 +110,17 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
               <Text style={styles.plate} testID="recognized-plate">
                 {result.plate}
               </Text>
-              <Text style={styles.hint}>Номер распознан. Верно?</Text>
+              <Text style={styles.hint}>{t('plate.confirmQuestion')}</Text>
               <View style={styles.actions}>
                 <PrimaryButton
                   testID="confirm-plate"
-                  title="✓ Верно"
+                  title={t('plate.correct')}
                   onPress={confirm}
                   loading={confirming}
                 />
                 <View style={styles.gap} />
                 <PrimaryButton
-                  title="✗ Переснять"
+                  title={t('plate.retake')}
                   variant="secondary"
                   onPress={retake}
                   disabled={confirming}
@@ -131,16 +131,16 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
             <>
               <Text style={styles.error} testID="ocr-error">
                 {result?.reason === 'low_confidence'
-                  ? 'Номер распознан неуверенно. Переснимите при хорошем освещении.'
-                  : 'Не удалось распознать номер. Переснимите.'}
+                  ? t('plate.lowConfidence')
+                  : t('plate.notRecognized')}
               </Text>
               {/* Diagnostics only in debug builds (__DEV__ is false in release). */}
               {__DEV__ && lastOcrText.length > 0 && (
                 <Text style={styles.debug} testID="ocr-debug">
-                  OCR увидел: {lastOcrText}
+                  {t('plate.ocrSaw', { text: lastOcrText })}
                 </Text>
               )}
-              <PrimaryButton testID="retake" title="Переснять" onPress={retake} />
+              <PrimaryButton testID="retake" title={t('plate.retakeShort')} onPress={retake} />
             </>
           )}
         </View>

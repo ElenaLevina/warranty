@@ -25,6 +25,7 @@ import {
   useMicrophonePermission,
 } from 'react-native-vision-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { APP_CONFIG } from '../config';
 
 export type CaptureMode = 'photo' | 'video';
@@ -61,6 +62,7 @@ export function CameraCapture({
   onDone,
   onCancel,
 }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const device = useCameraDevice('back');
   const { hasPermission, requestPermission } = useCameraPermission();
@@ -113,7 +115,7 @@ export function CameraCapture({
       const photo = await camera.current.takePhoto({ flash: 'auto' });
       onPhoto?.(photo.path);
     } catch (e) {
-      Alert.alert('Ошибка съёмки', e instanceof Error ? e.message : String(e));
+      Alert.alert(t('camera.shootErrorTitle'), e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -147,7 +149,7 @@ export function CameraCapture({
       onRecordingError: error => {
         setRecording(false);
         clearTimer();
-        Alert.alert('Ошибка записи', error.message);
+        Alert.alert(t('camera.recordErrorTitle'), error.message);
       },
     });
     // Тикаем секунды и автостоп по лимиту.
@@ -155,7 +157,7 @@ export function CameraCapture({
       setElapsed(prev => {
         const next = prev + 1;
         if (next >= APP_CONFIG.maxVideoDurationSec) {
-          Alert.alert('Лимит видео', 'Достигнута максимальная длина (3 мин). Запись остановлена.');
+          Alert.alert(t('camera.videoLimitTitle'), t('camera.videoLimitMsg'));
           stopVideo().catch(() => undefined);
         }
         return next;
@@ -166,9 +168,9 @@ export function CameraCapture({
   if (device === undefined) {
     return (
       <View style={styles.fallback}>
-        <Text style={styles.fallbackText}>Камера недоступна на этом устройстве.</Text>
+        <Text style={styles.fallbackText}>{t('camera.unavailable')}</Text>
         <Pressable onPress={onCancel} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Назад</Text>
+          <Text style={styles.cancelText}>{t('common.back')}</Text>
         </Pressable>
       </View>
     );
@@ -177,13 +179,13 @@ export function CameraCapture({
   if (!hasPermission) {
     return (
       <View style={styles.fallback}>
-        <Text style={styles.fallbackText}>Нужен доступ к камере.</Text>
+        <Text style={styles.fallbackText}>{t('camera.needPermission')}</Text>
         <Pressable
           onPress={() => {
             requestPermission().catch(() => undefined);
           }}
           style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Разрешить</Text>
+          <Text style={styles.cancelText}>{t('common.allow')}</Text>
         </Pressable>
       </View>
     );
@@ -205,9 +207,9 @@ export function CameraCapture({
       {showPlateFrame && (
         <View style={styles.overlay} pointerEvents="none">
           <View style={styles.hintBanner}>
-            <Text style={styles.hintTitle}>Сфотографируйте автомобиль</Text>
+            <Text style={styles.hintTitle}>{t('camera.shootCar')}</Text>
             <Text style={styles.hintSub}>
-              Номер распознаётся автоматически и может быть в любом месте кадра
+              {t('camera.plateAnywhere')}
             </Text>
           </View>
         </View>
@@ -235,7 +237,7 @@ export function CameraCapture({
             onPress={() => setCurrentMode('photo')}
             style={[styles.modeBtn, currentMode === 'photo' && styles.modeBtnActive]}>
             <Text style={[styles.modeText, currentMode === 'photo' && styles.modeTextActive]}>
-              📷 Фото
+              {t('camera.photo')}
             </Text>
           </Pressable>
           <Pressable
@@ -243,7 +245,7 @@ export function CameraCapture({
             onPress={() => setCurrentMode('video')}
             style={[styles.modeBtn, currentMode === 'video' && styles.modeBtnActive]}>
             <Text style={[styles.modeText, currentMode === 'video' && styles.modeTextActive]}>
-              🎥 Видео
+              {t('camera.video')}
             </Text>
           </Pressable>
         </View>
@@ -251,7 +253,7 @@ export function CameraCapture({
 
       <View style={[styles.controls, { bottom: insets.bottom + 24 }]}>
         <Pressable onPress={onCancel} style={styles.sideBtn} disabled={recording}>
-          <Text style={styles.sideText}>Отмена</Text>
+          <Text style={styles.sideText}>{t('common.cancel')}</Text>
         </Pressable>
 
         {currentMode === 'photo' ? (
@@ -273,7 +275,7 @@ export function CameraCapture({
             onPress={onDone}
             style={styles.sideBtn}
             disabled={recording}>
-            <Text style={[styles.sideText, styles.doneText]}>Готово</Text>
+            <Text style={[styles.sideText, styles.doneText]}>{t('camera.done')}</Text>
           </Pressable>
         ) : (
           <View style={styles.sideBtn} />

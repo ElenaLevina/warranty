@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import {
@@ -14,6 +15,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 type Props = NativeStackScreenProps<RootStackParamList, 'Start'>;
 
 export function StartScreen({ navigation }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const openSessions = useSessionStore(s => s.openSessions);
   const actions = useSessionActions();
   const mechanic = useAuthStore(s => s.current);
@@ -39,7 +41,7 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
         )}
         <View style={styles.topActions}>
           <Pressable testID="open-settings" onPress={() => navigation.navigate('Settings')} hitSlop={8}>
-            <Text style={styles.settings}>⚙ Настройки</Text>
+            <Text style={styles.settings}>⚙ {t('start.settings')}</Text>
           </Pressable>
           <Pressable
             testID="lock-app"
@@ -48,27 +50,27 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
               authActions.lock();
             }}
             hitSlop={8}>
-            <Text style={styles.lock}>Выйти</Text>
+            <Text style={styles.lock}>{t('start.logout')}</Text>
           </Pressable>
         </View>
       </View>
 
       <View style={styles.header}>
         <Text style={styles.logo}>🔧 Warranty</Text>
-        <Text style={styles.subtitle}>Документирование гарантийного случая</Text>
+        <Text style={styles.subtitle}>{t('start.subtitle')}</Text>
       </View>
 
       <View style={styles.cta}>
         <PrimaryButton
           testID="start-inspection"
-          title="Начать осмотр"
+          title={t('start.startInspection')}
           onPress={() => navigation.navigate('PlateCapture')}
         />
       </View>
 
       {openSessions.length > 0 && (
         <View style={styles.openBlock}>
-          <Text style={styles.openTitle}>Незакрытые сессии</Text>
+          <Text style={styles.openTitle}>{t('start.openSessions')}</Text>
           <FlatList
             data={openSessions}
             keyExtractor={item => item.case_id}
@@ -79,7 +81,8 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
                 onPress={() => resume(item.case_id)}>
                 <Text style={styles.rowPlate}>{item.plate_number}</Text>
                 <Text style={styles.rowMeta}>
-                  {new Date(item.session_start).toLocaleString()} · {item.file_count} файлов
+                  {new Date(item.session_start).toLocaleString()} ·{' '}
+                  {t('start.files', { count: item.file_count })}
                 </Text>
               </Pressable>
             )}

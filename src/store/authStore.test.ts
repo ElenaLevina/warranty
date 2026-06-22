@@ -15,14 +15,15 @@ describe('authStore', () => {
 
   it('validates the registration form', () => {
     const { store } = harness();
+    // Errors are i18n keys (the screen renders them via t(error)).
     expect(store.getState().register('', '1234', '1234')).toBe(false);
-    expect(store.getState().error).toMatch(/логин/i);
+    expect(store.getState().error).toBe('auth.enterLogin');
 
     expect(store.getState().register('Ivan', '12', '12')).toBe(false);
-    expect(store.getState().error).toMatch(/4.6 цифр|4–6/);
+    expect(store.getState().error).toBe('auth.pinFormat');
 
     expect(store.getState().register('Ivan', '1234', '0000')).toBe(false);
-    expect(store.getState().error).toMatch(/совпад/i);
+    expect(store.getState().error).toBe('auth.pinMismatch');
   });
 
   it('registers and becomes authenticated', () => {
@@ -42,7 +43,7 @@ describe('authStore', () => {
 
     expect(store.getState().unlock('0000')).toBe(false);
     expect(store.getState().status).toBe('locked');
-    expect(store.getState().error).toMatch(/неверный/i);
+    expect(store.getState().error).toBe('auth.wrongPin');
 
     expect(store.getState().unlock('1234')).toBe(true);
     expect(store.getState().status).toBe('authenticated');

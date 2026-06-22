@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Alert, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useServices, useSessionStore, useSessionActions } from '../store/StoreProvider';
@@ -12,6 +13,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ActiveSession'>;
 const DEV_VIDEO_DURATION_SEC = 8;
 
 export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const services = useServices();
   const actions = useSessionActions();
   const active = useSessionStore(s => s.active);
@@ -40,10 +42,10 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyWrap}>
-          <Text style={styles.empty}>Сессия завершена</Text>
+          <Text style={styles.empty}>{t('session.finished')}</Text>
           <PrimaryButton
             testID="back-to-start"
-            title="На старт"
+            title={t('session.toStart')}
             onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Start' }] })}
           />
         </View>
@@ -82,10 +84,10 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   };
 
   const finish = (): void => {
-    Alert.alert('Завершить сессию?', 'Добавить файлы будет невозможно.', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('session.finishTitle'), t('session.finishMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Завершить',
+        text: t('session.finishConfirm'),
         style: 'destructive',
         onPress: async () => {
           const plate = active.plate_number;
@@ -96,7 +98,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
             await actions.finish();
             navigation.replace('SessionComplete', { plate, photoCount: p, videoCount: v });
           } catch (e) {
-            Alert.alert('Не удалось завершить', e instanceof Error ? e.message : String(e));
+            Alert.alert(t('session.finishFailedTitle'), e instanceof Error ? e.message : String(e));
           }
         },
       },
@@ -112,7 +114,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           keyboardShouldPersistTaps="handled">
           <Text style={styles.plate}>{active.plate_number}</Text>
           <Text testID="file-counter" style={styles.counter}>
-            {files.length} файлов · {photoCount} фото, {videoCount} видео
+            {t('session.counter', { count: files.length, photos: photoCount, videos: videoCount })}
           </Text>
 
           <View style={styles.grid}>
@@ -128,11 +130,11 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
           <View style={styles.captureRow}>
             <View style={styles.flex}>
-              <PrimaryButton testID="take-photo" title="📷 Фото" onPress={onPhoto} loading={phase === 'busy'} />
+              <PrimaryButton testID="take-photo" title={t('session.photo')} onPress={onPhoto} loading={phase === 'busy'} />
             </View>
             <View style={styles.gap} />
             <View style={styles.flex}>
-              <PrimaryButton testID="record-video" title="🎥 Видео" variant="secondary" onPress={onVideo} />
+              <PrimaryButton testID="record-video" title={t('session.video')} variant="secondary" onPress={onVideo} />
             </View>
           </View>
         </ScrollView>
@@ -140,12 +142,12 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
         {/* Bottom bar lifted above the keyboard (and the system nav bar when
             the keyboard is closed), so description + ЗАКОНЧИЛ stay visible. */}
         <View style={[styles.bottomBar, { marginBottom: barLift }]}>
-          <Text style={styles.label}>Описание</Text>
+          <Text style={styles.label}>{t('session.description')}</Text>
           <TextInput
             testID="description-input"
             style={styles.input}
             multiline
-            placeholder="Опишите повреждения и детали…"
+            placeholder={t('session.descriptionPlaceholder')}
             value={description}
             onChangeText={setDescription}
             onBlur={() => {
@@ -154,7 +156,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           />
           <PrimaryButton
             testID="finish-session"
-            title="ЗАКОНЧИЛ"
+            title={t('session.finish')}
             variant="danger"
             onPress={finish}
             loading={phase === 'busy'}

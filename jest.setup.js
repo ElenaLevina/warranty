@@ -63,3 +63,6 @@ jest.mock('react-native-vision-camera', () => ({
 
 // gesture-handler / screens setup
 jest.mock('react-native-gesture-handler', () => ({}));
+
+// Initialize i18n for component tests (defaults to English under the MMKV mock).
+require('./src/i18n');

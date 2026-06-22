@@ -17,21 +17,23 @@ import { SessionCompleteScreen } from '../screens/SessionCompleteScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { LockScreen } from '../screens/LockScreen';
 import { useAuthStore } from '../store/StoreProvider';
+import { useTranslation } from 'react-i18next';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator();
 
 function AppStack(): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <Stack.Navigator initialRouteName="Start">
       <Stack.Screen name="Start" component={StartScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Настройки' }} />
-      <Stack.Screen name="PlateCapture" component={PlateCaptureScreen} options={{ title: 'Номер авто' }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t('settings.title') }} />
+      <Stack.Screen name="PlateCapture" component={PlateCaptureScreen} options={{ title: t('plate.title') }} />
       <Stack.Screen name="Capture" component={CaptureScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="ActiveSession"
         component={ActiveSessionScreen}
-        options={{ title: 'Осмотр', headerBackVisible: false }}
+        options={{ title: t('session.title'), headerBackVisible: false }}
       />
       <Stack.Screen
         name="SessionComplete"

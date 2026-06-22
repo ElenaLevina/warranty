@@ -46,16 +46,17 @@ export function createAuthStore(auth: AuthService): AuthStore {
     },
 
     register(login, pin, pinConfirm) {
+      // Errors are i18n keys; the screen renders them via t(error).
       if (login.trim().length === 0) {
-        set({ error: 'Введите логин механика' });
+        set({ error: 'auth.enterLogin' });
         return false;
       }
       if (!PIN_RE.test(pin)) {
-        set({ error: 'PIN должен содержать 4–6 цифр' });
+        set({ error: 'auth.pinFormat' });
         return false;
       }
       if (pin !== pinConfirm) {
-        set({ error: 'PIN не совпадает' });
+        set({ error: 'auth.pinMismatch' });
         return false;
       }
       const identity = auth.register(login, pin);
@@ -71,7 +72,7 @@ export function createAuthStore(auth: AuthService): AuthStore {
     unlock(pin) {
       const identity = auth.unlock(pin);
       if (identity === null) {
-        set({ error: 'Неверный PIN' });
+        set({ error: 'auth.wrongPin' });
         return false;
       }
       set({ status: 'authenticated', current: identity, error: null });

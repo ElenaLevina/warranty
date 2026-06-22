@@ -6,6 +6,7 @@
 
 import React, { useRef } from 'react';
 import { StyleSheet } from 'react-native';
+import './src/i18n'; // initialize localization (side effect)
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';

@@ -118,8 +118,9 @@ describe('SessionCompleteScreen', () => {
       );
     });
 
+    // Summary is a localized interpolated string (English under test).
     const summary = tree.root.findByProps({ testID: 'summary' });
-    expect(summary.props.children).toEqual(['Сохранено: ', 8, ' фото, ', 1, ' видео']);
+    expect(summary.props.children).toMatch(/8.*1/);
 
     await act(async () => press(tree, 'new-inspection'));
     expect(nav.reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: 'Start' }] });

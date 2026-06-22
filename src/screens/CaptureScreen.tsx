@@ -7,12 +7,14 @@
 import React from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
+import { useTranslation } from 'react-i18next';
 import { CameraCapture } from '../components/CameraCapture';
 import { useSessionStore, useSessionActions } from '../store/StoreProvider';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Capture'>;
 
 export function CaptureScreen({ navigation, route }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const { caseId, initialMode } = route.params;
   const actions = useSessionActions();
   const active = useSessionStore(s => s.active);
@@ -30,7 +32,7 @@ export function CaptureScreen({ navigation, route }: Props): React.JSX.Element {
     <CameraCapture
       mode={initialMode ?? 'photo'}
       allowModeSwitch
-      counterText={`${photoCount} фото, ${videoCount} видео`}
+      counterText={t('camera.counter', { photos: photoCount, videos: videoCount })}
       onPhoto={path => {
         actions.addPhoto(path).catch(() => undefined);
       }}

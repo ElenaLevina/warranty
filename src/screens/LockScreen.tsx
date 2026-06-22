@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore, useAuthActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
 
@@ -10,6 +11,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
  * different employee can register (cases stay isolated by mechanic_id).
  */
 export function LockScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const error = useAuthStore(s => s.error);
   const login = useAuthStore(s => s.registeredLogin);
   const actions = useAuthActions();
@@ -20,14 +22,10 @@ export function LockScreen(): React.JSX.Element {
   };
 
   const switchUser = (): void => {
-    Alert.alert(
-      'Сменить механика?',
-      'Текущая регистрация будет удалена. Кейсы прежнего механика останутся, но будут недоступны новому.',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Сменить', style: 'destructive', onPress: () => actions.switchUser() },
-      ],
-    );
+    Alert.alert(t('auth.switchTitle'), t('auth.switchMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('auth.switchConfirm'), style: 'destructive', onPress: () => actions.switchUser() },
+    ]);
   };
 
   return (
@@ -36,10 +34,10 @@ export function LockScreen(): React.JSX.Element {
         <Text style={styles.logo}>🔧 Warranty</Text>
         {login !== null && (
           <Text testID="lock-login" style={styles.login}>
-            Вход: {login}
+            {t('auth.loginAs', { name: login })}
           </Text>
         )}
-        <Text style={styles.subtitle}>Введите PIN</Text>
+        <Text style={styles.subtitle}>{t('auth.enterPin')}</Text>
       </View>
 
       <View style={styles.form}>
@@ -57,16 +55,16 @@ export function LockScreen(): React.JSX.Element {
 
         {error !== null && (
           <Text testID="auth-error" style={styles.error}>
-            {error}
+            {t(error)}
           </Text>
         )}
 
         <View style={styles.cta}>
-          <PrimaryButton testID="unlock-submit" title="Войти" onPress={submit} />
+          <PrimaryButton testID="unlock-submit" title={t('auth.unlock')} onPress={submit} />
         </View>
 
         <Pressable testID="switch-user" onPress={switchUser} style={styles.switch}>
-          <Text style={styles.switchText}>Сменить механика</Text>
+          <Text style={styles.switchText}>{t('auth.switchUser')}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
