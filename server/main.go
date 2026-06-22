@@ -155,12 +155,14 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 	}
 	tmp.Close()
 
-	// Integrity: received byte count must match the declared size.
-	if declaredSize > 0 && written != declaredSize {
+	// Integrity: reject only a SHORT upload (truncated / dropped connection).
+	// RNFS.stat can be off by a couple of bytes on a complete file, so an
+	// over-count is tolerated; truncation makes `written` much smaller.
+	if declaredSize > 0 && written < declaredSize {
 		os.Remove(tmpName)
-		log.Printf("REJECT %s/%s: size mismatch (want %d, got %d) — incomplete upload",
+		log.Printf("REJECT %s/%s: truncated upload (want >=%d, got %d)",
 			caseID, name, declaredSize, written)
-		http.Error(w, "size mismatch", http.StatusBadRequest)
+		http.Error(w, "incomplete upload", http.StatusBadRequest)
 		return
 	}
 
