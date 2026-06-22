@@ -5,9 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useServices, useSessionStore, useSessionActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { UploadBadge } from '../components/UploadBadge';
 import { FEATURES } from '../app/featureFlags';
-import type { UploadStatus } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveSession'>;
 
@@ -17,7 +15,6 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const services = useServices();
   const actions = useSessionActions();
   const active = useSessionStore(s => s.active);
-  const uploads = useSessionStore(s => s.uploads);
   const phase = useSessionStore(s => s.phase);
   const [description, setDescription] = useState(active?.description ?? '');
   const scrollRef = useRef<ScrollView>(null);
@@ -25,7 +22,14 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   if (active === null) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.empty}>Нет активной сессии</Text>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.empty}>Сессия завершена</Text>
+          <PrimaryButton
+            testID="back-to-start"
+            title="На старт"
+            onPress={() => navigation.popToTop()}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -96,7 +100,6 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
               <Text style={styles.tileName} numberOfLines={1}>
                 {f.name}
               </Text>
-              <UploadBadge status={(uploads[f.name] ?? 'pending') as UploadStatus} />
             </View>
           ))}
         </View>
@@ -141,7 +144,8 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 20, paddingBottom: 120 },
-  empty: { textAlign: 'center', marginTop: 40, color: '#666' },
+  emptyWrap: { flex: 1, justifyContent: 'center', padding: 24 },
+  empty: { textAlign: 'center', marginBottom: 24, color: '#444', fontSize: 18, fontWeight: '700' },
   plate: { fontSize: 32, fontWeight: '900', color: '#222', textAlign: 'center' },
   counter: { fontSize: 14, color: '#777', textAlign: 'center', marginTop: 6, marginBottom: 16 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },

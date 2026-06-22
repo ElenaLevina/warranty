@@ -35,8 +35,10 @@ export class HttpUploadService implements UploadService {
   constructor(private readonly deps: HttpUploadDeps) {}
 
   async enqueue(item: UploadQueueItem): Promise<void> {
+    // Queue only — NO per-file upload. Files are sent in the background on
+    // "ЗАКОНЧИЛ" (and retried on reconnect). Per product decision this overrides
+    // ТЗ §5.3 "upload immediately": per-photo upload made the UI hang.
     this.deps.index.enqueueUpload({ ...item, status: 'pending' });
-    await this.tryUpload(item);
   }
 
   async processQueue(): Promise<void> {

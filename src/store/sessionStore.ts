@@ -220,14 +220,16 @@ export function createSessionStore(services: AppServices): SessionStore {
               plate: active.plate_number,
               fileCount: closed.files.length,
             });
-            // Clear the active session right after closing so the UI can't
-            // trigger a second close while uploads run.
             set({ active: null, uploads: {} });
-            // Send remaining files + the session manifest to the PC receiver
-            // (§5.3/§7). Failures don't block closing — the queue retries later.
-            await upload.processQueue().catch(() => undefined);
-            await upload.completeCase(active.case_id, JSON.stringify(closed)).catch(() => undefined);
             await refreshOpenSessions(set);
+            // Upload the whole case in the BACKGROUND — never block the UI/close.
+            // Failures are retried by the queue (on reconnect / next start).
+            void (async () => {
+              await upload.processQueue().catch(() => undefined);
+              await upload
+                .completeCase(closed.case_id, JSON.stringify(closed))
+                .catch(() => undefined);
+            })();
           });
         } finally {
           finishing = false;

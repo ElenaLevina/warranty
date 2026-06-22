@@ -19,6 +19,7 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>('camera');
   const [result, setResult] = useState<PlateResult | null>(null);
   const [tmpPath, setTmpPath] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   /** Общий путь: снимок (реальный или dev) -> распознавание -> показ результата. */
   const processImage = async (path: string): Promise<void> => {
@@ -47,9 +48,10 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
   };
 
   const confirm = async (): Promise<void> => {
-    if (result?.ok !== true || tmpPath === null) {
-      return;
+    if (result?.ok !== true || tmpPath === null || confirming) {
+      return; // ignore repeat taps while the case is being created
     }
+    setConfirming(true);
     try {
       const caseId = await actions.startCase(result.plate, tmpPath);
       // Real camera: go straight into the persistent capture screen.
@@ -61,6 +63,8 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
       }
     } catch (e) {
       Alert.alert('Не удалось открыть сессию', e instanceof Error ? e.message : String(e));
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -108,9 +112,19 @@ export function PlateCaptureScreen({ navigation }: Props): React.JSX.Element {
               </Text>
               <Text style={styles.hint}>Номер распознан. Верно?</Text>
               <View style={styles.actions}>
-                <PrimaryButton testID="confirm-plate" title="✓ Верно" onPress={confirm} />
+                <PrimaryButton
+                  testID="confirm-plate"
+                  title="✓ Верно"
+                  onPress={confirm}
+                  loading={confirming}
+                />
                 <View style={styles.gap} />
-                <PrimaryButton title="✗ Переснять" variant="secondary" onPress={retake} />
+                <PrimaryButton
+                  title="✗ Переснять"
+                  variant="secondary"
+                  onPress={retake}
+                  disabled={confirming}
+                />
               </View>
             </>
           ) : (

@@ -74,27 +74,33 @@ function harness(settings: UploadSettings): H {
 const ENABLED: UploadSettings = { enabled: true, baseUrl: 'http://pc:8080', token: 't' };
 
 describe('HttpUploadService', () => {
-  it('uploads on enqueue and marks the item uploaded', async () => {
+  it('queues on enqueue (no upload) and uploads via processQueue', async () => {
     const { svc, idx, transport, statuses } = harness(ENABLED);
     await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
 
+    // enqueue does NOT upload (per-file upload is off; sent on finish/processQueue)
+    expect(transport.uploads).toHaveLength(0);
+    expect(idx.getQueue()[0]?.status).toBe('pending');
+
+    await svc.processQueue();
     expect(transport.uploads).toHaveLength(1);
     expect(transport.uploads[0]?.caseId).toBe('caseX');
     expect(transport.uploads[0]?.type).toBe('photo');
     expect(idx.getQueue()[0]?.status).toBe('uploaded');
-    expect(statuses).toContainEqual(['photo_001.jpg', 'uploading']);
     expect(statuses).toContainEqual(['photo_001.jpg', 'uploaded']);
   });
 
   it('detects video by extension', async () => {
     const { svc, transport } = harness(ENABLED);
     await svc.enqueue(item('caseX/video_001.mp4', 'video_001.mp4'));
+    await svc.processQueue();
     expect(transport.uploads[0]?.type).toBe('video');
   });
 
   it('leaves items pending when upload is disabled (offline/not configured)', async () => {
     const { svc, idx, transport } = harness({ enabled: false, baseUrl: '', token: '' });
     await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
+    await svc.processQueue();
     expect(transport.uploads).toHaveLength(0);
     expect(idx.getQueue()[0]?.status).toBe('pending');
   });
@@ -103,6 +109,7 @@ describe('HttpUploadService', () => {
     const { svc, idx, transport } = harness(ENABLED);
     transport.failUpload = true;
     await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
+    await svc.processQueue();
     expect(idx.getQueue()[0]?.status).toBe('error');
 
     // network back: processQueue re-sends everything not uploaded
