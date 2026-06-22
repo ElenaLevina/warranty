@@ -95,18 +95,22 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseMultipartForm(64 << 20); err != nil { // 64 MB in memory, rest to temp
+		log.Printf("REJECT %s: bad multipart form: %v", caseID, err)
 		http.Error(w, "bad multipart form", http.StatusBadRequest)
 		return
 	}
 	name := filepath.Base(r.FormValue("filename"))
 	wantHash := strings.ToLower(r.FormValue("sha256"))
+	log.Printf("recv file %s/%s (sha256=%q)", caseID, name, wantHash)
 	if !safeName.MatchString(name) {
+		log.Printf("REJECT %s/%s: invalid filename", caseID, name)
 		http.Error(w, "invalid filename", http.StatusBadRequest)
 		return
 	}
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
+		log.Printf("REJECT %s/%s: missing file part: %v", caseID, name, err)
 		http.Error(w, "missing file part", http.StatusBadRequest)
 		return
 	}
@@ -132,6 +136,7 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 	if _, err := io.Copy(io.MultiWriter(tmp, hasher), file); err != nil {
 		tmp.Close()
 		os.Remove(tmpName)
+		log.Printf("REJECT %s/%s: write failed: %v", caseID, name, err)
 		http.Error(w, "write failed", http.StatusInternalServerError)
 		return
 	}
@@ -140,6 +145,7 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 	gotHash := hex.EncodeToString(hasher.Sum(nil))
 	if wantHash != "" && gotHash != wantHash {
 		os.Remove(tmpName)
+		log.Printf("REJECT %s/%s: checksum mismatch (want %s, got %s)", caseID, name, wantHash, gotHash)
 		http.Error(w, "checksum mismatch", http.StatusBadRequest)
 		return
 	}

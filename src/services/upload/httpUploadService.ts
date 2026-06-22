@@ -95,7 +95,10 @@ export class HttpUploadService implements UploadService {
         type,
       });
       this.setStatus(item, 'uploaded');
-    } catch {
+    } catch (e) {
+      // Surface the reason in Metro/logcat to diagnose upload failures.
+      // eslint-disable-next-line no-console
+      console.warn(`[upload] failed ${item.filePath}:`, e instanceof Error ? e.message : e);
       this.setStatus(item, 'error');
     } finally {
       // Remove the decrypted temp copy if it differs from the sealed file.
