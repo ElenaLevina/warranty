@@ -89,6 +89,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 14,
     fontSize: 16,
+    color: '#222',
+    backgroundColor: '#fff',
   },
   error: { color: '#c62828', fontSize: 14, marginTop: 16 },
   cta: { marginTop: 28 },

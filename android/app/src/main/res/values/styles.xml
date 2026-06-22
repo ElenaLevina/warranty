@@ -1,9 +1,11 @@
 <resources>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
+    <!-- Base application theme. The app UI is designed light (white screens,
+         dark text), so we pin a Light theme and disable Android force-dark —
+         otherwise device dark mode made input text and titles white/invisible. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 
 </resources>

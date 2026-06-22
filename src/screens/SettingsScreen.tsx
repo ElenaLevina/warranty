@@ -105,6 +105,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     fontSize: 15,
+    color: '#222',
+    backgroundColor: '#fff',
   },
   check: { marginTop: 24 },
   ok: { color: '#2e7d32', fontSize: 14, marginTop: 10, textAlign: 'center' },

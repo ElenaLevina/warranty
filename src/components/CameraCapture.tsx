@@ -24,6 +24,7 @@ import {
   useCameraPermission,
   useMicrophonePermission,
 } from 'react-native-vision-camera';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_CONFIG } from '../config';
 
 export type CaptureMode = 'photo' | 'video';
@@ -60,6 +61,7 @@ export function CameraCapture({
   onDone,
   onCancel,
 }: Props): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const device = useCameraDevice('back');
   const { hasPermission, requestPermission } = useCameraPermission();
   const mic = useMicrophonePermission();
@@ -247,7 +249,7 @@ export function CameraCapture({
         </View>
       )}
 
-      <View style={styles.controls}>
+      <View style={[styles.controls, { bottom: insets.bottom + 24 }]}>
         <Pressable onPress={onCancel} style={styles.sideBtn} disabled={recording}>
           <Text style={styles.sideText}>Отмена</Text>
         </Pressable>

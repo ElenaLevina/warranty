@@ -206,5 +206,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     fontSize: 15,
     marginBottom: 12,
+    color: '#222',
+    backgroundColor: '#fff',
   },
 });

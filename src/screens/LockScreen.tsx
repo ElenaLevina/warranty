@@ -88,6 +88,8 @@ const styles = StyleSheet.create({
     fontSize: 22,
     textAlign: 'center',
     letterSpacing: 8,
+    color: '#222',
+    backgroundColor: '#fff',
   },
   error: { color: '#c62828', fontSize: 14, marginTop: 16, textAlign: 'center' },
   cta: { marginTop: 24 },
