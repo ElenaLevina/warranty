@@ -79,7 +79,9 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
             onPress={testConnection}
           />
           {check === 'ok' && <Text style={styles.ok}>✓ Сервер доступен</Text>}
-          {check === 'fail' && <Text style={styles.fail}>✗ Нет связи с сервером</Text>}
+          {check === 'fail' && (
+            <Text style={styles.fail}>✗ Нет связи или неверный токен</Text>
+          )}
         </View>
 
         <View style={styles.save}>
