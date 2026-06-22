@@ -27,7 +27,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           <PrimaryButton
             testID="back-to-start"
             title="На старт"
-            onPress={() => navigation.popToTop()}
+            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Start' }] })}
           />
         </View>
       </SafeAreaView>

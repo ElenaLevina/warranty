@@ -21,6 +21,7 @@ function makeNav(): Record<string, jest.Mock> {
     replace: jest.fn(),
     push: jest.fn(),
     popToTop: jest.fn(),
+    reset: jest.fn(),
     goBack: jest.fn(),
   };
 }
@@ -121,6 +122,6 @@ describe('SessionCompleteScreen', () => {
     expect(summary.props.children).toEqual(['Сохранено: ', 8, ' фото, ', 1, ' видео']);
 
     await act(async () => press(tree, 'new-inspection'));
-    expect(nav.popToTop).toHaveBeenCalled();
+    expect(nav.reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: 'Start' }] });
   });
 });

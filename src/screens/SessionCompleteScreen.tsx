@@ -22,7 +22,9 @@ export function SessionCompleteScreen({ navigation, route }: Props): React.JSX.E
       <PrimaryButton
         testID="new-inspection"
         title="Новый осмотр"
-        onPress={() => navigation.popToTop()}
+        // reset is robust: always lands on Start regardless of the current stack
+        // (popToTop throws "no screen to go back to" in some flows).
+        onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Start' }] })}
       />
     </SafeAreaView>
   );
