@@ -1,14 +1,5 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  ScrollView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TextInput, ScrollView, Alert, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
@@ -26,6 +17,21 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const active = useSessionStore(s => s.active);
   const phase = useSessionStore(s => s.phase);
   const [description, setDescription] = useState(active?.description ?? '');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Lift the bottom bar above the keyboard manually. RN 0.85 uses edge-to-edge
+  // on modern Android, where adjustResize doesn't shrink the window, so we
+  // react to keyboard events and pad the bar by the keyboard height.
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', e =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   if (active === null) {
     return (
@@ -96,9 +102,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={styles.flex}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.content}
@@ -130,9 +134,9 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           </View>
         </ScrollView>
 
-        {/* Fixed bottom bar: with adjustResize it sits right above the keyboard,
-            so the description field and ЗАКОНЧИЛ stay visible while typing. */}
-        <View style={styles.bottomBar}>
+        {/* Bottom bar lifted above the keyboard by its current height, so the
+            description field and ЗАКОНЧИЛ stay visible while typing. */}
+        <View style={[styles.bottomBar, { marginBottom: keyboardHeight }]}>
           <Text style={styles.label}>Описание</Text>
           <TextInput
             testID="description-input"
@@ -153,7 +157,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
             loading={phase === 'busy'}
           />
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
