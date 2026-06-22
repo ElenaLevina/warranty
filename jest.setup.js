@@ -63,3 +63,8 @@ jest.mock('react-native-vision-camera', () => ({
 
 // gesture-handler / screens setup
 jest.mock('react-native-gesture-handler', () => ({}));
+
+// keyboard-controller — official jest mock
+jest.mock('react-native-keyboard-controller', () =>
+  require('react-native-keyboard-controller/jest'),
+);

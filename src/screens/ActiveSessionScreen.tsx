@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Alert, Keyboard } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, ScrollView, Alert } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useServices, useSessionStore, useSessionActions } from '../store/StoreProvider';
@@ -17,21 +18,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const active = useSessionStore(s => s.active);
   const phase = useSessionStore(s => s.phase);
   const [description, setDescription] = useState(active?.description ?? '');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  // Lift the bottom bar above the keyboard manually. RN 0.85 uses edge-to-edge
-  // on modern Android, where adjustResize doesn't shrink the window, so we
-  // react to keyboard events and pad the bar by the keyboard height.
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', e =>
-      setKeyboardHeight(e.endCoordinates.height),
-    );
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
+  const insets = useSafeAreaInsets();
 
   if (active === null) {
     return (
@@ -134,29 +121,32 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           </View>
         </ScrollView>
 
-        {/* Bottom bar lifted above the keyboard by its current height, so the
-            description field and ЗАКОНЧИЛ stay visible while typing. */}
-        <View style={[styles.bottomBar, { marginBottom: keyboardHeight }]}>
-          <Text style={styles.label}>Описание</Text>
-          <TextInput
-            testID="description-input"
-            style={styles.input}
-            multiline
-            placeholder="Опишите повреждения и детали…"
-            value={description}
-            onChangeText={setDescription}
-            onBlur={() => {
-              void persistDescription();
-            }}
-          />
-          <PrimaryButton
-            testID="finish-session"
-            title="ЗАКОНЧИЛ"
-            variant="danger"
-            onPress={finish}
-            loading={phase === 'busy'}
-          />
-        </View>
+        {/* KeyboardStickyView keeps this bar pinned above the keyboard (handles
+            edge-to-edge insets correctly), so the description field and ЗАКОНЧИЛ
+            stay visible while typing. */}
+        <KeyboardStickyView>
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+            <Text style={styles.label}>Описание</Text>
+            <TextInput
+              testID="description-input"
+              style={styles.input}
+              multiline
+              placeholder="Опишите повреждения и детали…"
+              value={description}
+              onChangeText={setDescription}
+              onBlur={() => {
+                void persistDescription();
+              }}
+            />
+            <PrimaryButton
+              testID="finish-session"
+              title="ЗАКОНЧИЛ"
+              variant="danger"
+              onPress={finish}
+              loading={phase === 'busy'}
+            />
+          </View>
+        </KeyboardStickyView>
       </View>
     </SafeAreaView>
   );

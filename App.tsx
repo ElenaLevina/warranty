@@ -7,6 +7,7 @@
 import React, { useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { StoreProvider } from './src/store/StoreProvider';
@@ -21,12 +22,14 @@ function App(): React.JSX.Element {
   }
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
-        <StoreProvider services={servicesRef.current}>
-          <NetworkUploadSync />
-          <RootNavigator />
-        </StoreProvider>
-      </SafeAreaProvider>
+      <KeyboardProvider>
+        <SafeAreaProvider>
+          <StoreProvider services={servicesRef.current}>
+            <NetworkUploadSync />
+            <RootNavigator />
+          </StoreProvider>
+        </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }
