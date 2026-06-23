@@ -24,6 +24,8 @@ const READ_ONLY_MODE = 0o444;
 export interface CreateCaseParams {
   plateNumber: string;
   mechanicId: string;
+  /** Role of the user who opened the case (metadata). */
+  mechanicRole?: 'admin' | 'mechanic';
   /** Stable per-install device id (§8). Omitted when not available. */
   deviceId?: string;
   /** Временный путь снимка номера из камеры. */
@@ -117,7 +119,7 @@ export class FilesService {
    * session.json (status=open). Returns the meta (includes the generated case_id).
    */
   async createCase(params: CreateCaseParams): Promise<SessionMeta> {
-    const { plateNumber, mechanicId, deviceId, plateImageTmpPath } = params;
+    const { plateNumber, mechanicId, mechanicRole, deviceId, plateImageTmpPath } = params;
     const caseId = this.makeCaseId(plateNumber);
 
     await this.fs.mkdir(this.caseDir(caseId));
@@ -130,6 +132,7 @@ export class FilesService {
       session_end: null,
       mechanic_id: mechanicId,
       // Omitted from JSON when undefined (e.g. in unit tests).
+      ...(mechanicRole !== undefined ? { mechanic_role: mechanicRole } : {}),
       ...(deviceId !== undefined ? { device_id: deviceId } : {}),
       files: [{ name: 'plate.jpg', type: 'photo', timestamp: this.clockTime() }],
       description: '',

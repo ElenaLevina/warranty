@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  recDot: { color: '#ff5252', fontSize: 14, marginRight: 8 },
+  recDot: { color: '#ff5252', fontSize: 14, marginEnd: 8 },
   recTime: { color: '#fff', fontSize: 16, fontVariant: ['tabular-nums'] },
   counterBanner: {
     position: 'absolute',

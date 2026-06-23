@@ -33,6 +33,8 @@ export interface SessionMeta {
   /** ISO date-time окончания; null пока status === 'open'. */
   session_end: string | null;
   mechanic_id: string;
+  /** Role of the user who recorded the case (metadata). */
+  mechanic_role?: 'admin' | 'mechanic';
   /** Stable per-install device id that recorded the case (§8). */
   device_id?: string;
   files: CaseFileEntry[];

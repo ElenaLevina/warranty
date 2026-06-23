@@ -150,9 +150,11 @@ export function createSessionStore(services: AppServices): SessionStore {
 
       async startCase(plateNumber: string, plateImageTmpPath: string) {
         return run(async () => {
+          const mechanicId = requireMechanicId();
           const meta = await files.createCase({
             plateNumber,
-            mechanicId: requireMechanicId(),
+            mechanicId,
+            mechanicRole: auth.current()?.role,
             deviceId: device.getDeviceId(),
             plateImageTmpPath,
           });

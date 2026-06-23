@@ -12,6 +12,9 @@ import { ru } from './locales/ru';
 import { he } from './locales/he';
 import { ar } from './locales/ar';
 import { getStoredLanguage, storeLanguage, type AppLanguage } from './languageStore';
+import { applyDirection } from './rtl';
+
+const initialLanguage = getStoredLanguage() ?? 'en';
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -20,16 +23,21 @@ i18n.use(initReactI18next).init({
     he: { translation: he },
     ar: { translation: ar },
   },
-  lng: getStoredLanguage() ?? 'en',
+  lng: initialLanguage,
   fallbackLng: 'en',
   interpolation: { escapeValue: false },
   returnNull: false,
 });
 
-/** Change the UI language and persist it. */
+// Align native layout direction with the stored language on startup (may
+// trigger a one-time restart the first time an RTL language is in effect).
+applyDirection(initialLanguage);
+
+/** Change the UI language and persist it. Flips RTL/LTR (restart) if needed. */
 export function setAppLanguage(lng: AppLanguage): void {
   storeLanguage(lng);
   void i18n.changeLanguage(lng);
+  applyDirection(lng); // restarts the app when the direction changes
 }
 
 export { APP_LANGUAGES, RTL_LANGUAGES, type AppLanguage } from './languageStore';

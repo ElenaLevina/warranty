@@ -101,7 +101,7 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 18, marginLeft: 'auto' },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 18, marginStart: 'auto' },
   mechanic: { fontSize: 14, color: '#455a64', fontWeight: '600' },
   settings: { fontSize: 14, color: '#1565c0', fontWeight: '600' },
   lock: { fontSize: 14, color: '#1565c0', fontWeight: '600' },
