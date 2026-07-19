@@ -21,3 +21,23 @@ export function getStoredLanguage(): AppLanguage | null {
 export function storeLanguage(lng: AppLanguage): void {
   store.set(KEY, lng);
 }
+
+const KEY_AUTO_LOGIN = 'autoLoginUserId';
+
+/**
+ * One-shot auto-login across the RTL restart. Written ONLY right after a
+ * successful PIN entry whose language flips the layout direction (the restart
+ * would otherwise drop the in-memory session and bounce the user back to the
+ * picker). Consumed (and cleared) once on the next startup.
+ */
+export function stashAutoLogin(userId: string): void {
+  store.set(KEY_AUTO_LOGIN, userId);
+}
+
+export function takeAutoLogin(): string | null {
+  const v = store.getString(KEY_AUTO_LOGIN);
+  if (v !== undefined) {
+    store.delete(KEY_AUTO_LOGIN);
+  }
+  return v ?? null;
+}

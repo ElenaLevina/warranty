@@ -1,5 +1,6 @@
 import { createAuthStore } from './authStore';
 import { createMmkvAuthService } from '../services/auth/authService';
+import { stashAutoLogin, takeAutoLogin } from '../i18n/languageStore';
 
 function harness() {
   const auth = createMmkvAuthService();
@@ -56,5 +57,33 @@ describe('authStore', () => {
     expect(store.getState().login(id, '1234')).toBe(true);
     expect(store.getState().status).toBe('authenticated');
     expect(auth.current()?.id).toBe(id);
+  });
+});
+
+describe('authStore — auto-login across the RTL restart', () => {
+  it('restores the session from the one-shot marker on startup', () => {
+    const { auth, store } = harness();
+    store.getState().createFirstAdmin(ADMIN);
+    const id = store.getState().current!.id;
+    store.getState().lock();
+
+    // Simulate: a PIN login flipped the direction -> marker stashed -> restart.
+    stashAutoLogin(id);
+    const restarted = createAuthStore(auth);
+    expect(restarted.getState().status).toBe('authenticated');
+    expect(restarted.getState().current?.id).toBe(id);
+
+    // The marker is one-shot: a following cold start stays locked.
+    const coldStart = createAuthStore(auth);
+    expect(coldStart.getState().status).toBe('locked');
+  });
+
+  it('ignores a stale marker for a deleted user', () => {
+    const { auth, store } = harness();
+    store.getState().createFirstAdmin(ADMIN);
+    stashAutoLogin('user_gone12');
+    const restarted = createAuthStore(auth);
+    expect(restarted.getState().status).toBe('locked');
+    expect(takeAutoLogin()).toBeNull(); // consumed either way
   });
 });

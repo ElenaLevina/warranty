@@ -15,7 +15,8 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AuthService, User } from '../services/auth/authService';
 import { isValidPin } from '../services/users/userService';
-import type { AppLanguage } from '../i18n/languageStore';
+import { stashAutoLogin, takeAutoLogin, type AppLanguage } from '../i18n/languageStore';
+import { directionWillFlip } from '../i18n/rtl';
 import { setAppLanguage } from '../i18n';
 
 export type AuthStatus = 'no-users' | 'locked' | 'authenticated';
@@ -55,11 +56,32 @@ function statusFor(auth: AuthService): AuthStatus {
   return auth.hasUsers() ? 'locked' : 'no-users';
 }
 
+/**
+ * Applying a user's language may flip the layout direction, which restarts the
+ * app and would drop the in-memory session (the user would land on the picker
+ * again right after entering the PIN). So: stash a one-shot auto-login marker
+ * BEFORE applying the language; the next startup consumes it and restores the
+ * session without asking for the PIN again.
+ */
+function applyUserLanguage(user: User): void {
+  if (directionWillFlip(user.language)) {
+    stashAutoLogin(user.id);
+  }
+  setAppLanguage(user.language); // may restart the app (RTL <-> LTR)
+}
+
+/** Consume the post-restart auto-login marker, restoring the session. */
+function restoreAfterRestart(auth: AuthService): User | null {
+  const userId = takeAutoLogin();
+  return userId === null ? null : auth.restore(userId);
+}
+
 export function createAuthStore(auth: AuthService): AuthStore {
+  const restored = restoreAfterRestart(auth);
   return createStore<AuthState>((set) => ({
-    status: statusFor(auth),
+    status: restored !== null ? 'authenticated' : statusFor(auth),
     users: auth.users(),
-    current: null,
+    current: restored,
     error: null,
 
     init() {
@@ -93,7 +115,7 @@ export function createAuthStore(auth: AuthService): AuthStore {
         pin: input.pin,
       });
       auth.login(user.id, input.pin); // set the live session
-      setAppLanguage(input.language);
+      applyUserLanguage(user);
       set({ status: 'authenticated', current: user, users: auth.users(), error: null });
       return true;
     },
@@ -104,7 +126,7 @@ export function createAuthStore(auth: AuthService): AuthStore {
         set({ error: 'auth.wrongPin' });
         return false;
       }
-      setAppLanguage(user.language);
+      applyUserLanguage(user);
       set({ status: 'authenticated', current: user, error: null });
       return true;
     },

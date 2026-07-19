@@ -12,6 +12,11 @@ export function isRtlLanguage(lng: AppLanguage): boolean {
   return RTL_LANGUAGES.includes(lng);
 }
 
+/** True when switching to `lng` will flip the layout direction (=> restart). */
+export function directionWillFlip(lng: AppLanguage): boolean {
+  return I18nManager.isRTL !== isRtlLanguage(lng);
+}
+
 /**
  * Align the native layout direction with the language. Returns true if a
  * restart was triggered (direction changed).

@@ -29,6 +29,11 @@ export interface AuthService {
   removeUser(id: string): void;
   /** Log in: verify the user's PIN and set the current session on success. */
   login(userId: string, pin: string): User | null;
+  /**
+   * Restore the session WITHOUT a PIN — used only for the one-shot auto-login
+   * right after the RTL restart that follows a successful PIN entry.
+   */
+  restore(userId: string): User | null;
   /** Currently logged-in user, or null when locked. */
   current(): User | null;
   /** Log out (clear the in-memory session; keeps the user list). */
@@ -70,6 +75,14 @@ export class LocalAuthService implements AuthService {
 
   login(userId: string, pin: string): User | null {
     const user = this.userService.verifyPin(userId, pin);
+    if (user !== null) {
+      this.session = user;
+    }
+    return user;
+  }
+
+  restore(userId: string): User | null {
+    const user = this.userService.get(userId);
     if (user !== null) {
       this.session = user;
     }
