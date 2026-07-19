@@ -1,5 +1,11 @@
+/**
+ * OrderCaptureScreen — mandatory FIRST step of an inspection: scan the
+ * work-order form and confirm the recognized 6-digit order number, then
+ * proceed to the plate scan. The form photo is NOT stored in the case
+ * (recognizeOrder deletes the temp file right after OCR).
+ */
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,28 +14,23 @@ import { useServices, useSessionActions, useSessionStore } from '../store/StoreP
 import { PrimaryButton } from '../components/PrimaryButton';
 import { CameraCapture } from '../components/CameraCapture';
 import { FEATURES } from '../app/featureFlags';
-import type { PlateResult } from '../types';
+import type { OrderNumberResult } from '../types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'PlateCapture'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'OrderCapture'>;
 type Phase = 'camera' | 'recognizing' | 'result';
 
-export function PlateCaptureScreen({ navigation, route }: Props): React.JSX.Element {
+export function OrderCaptureScreen({ navigation }: Props): React.JSX.Element {
   const { t } = useTranslation();
-  const { orderNumber } = route.params;
   const services = useServices();
   const actions = useSessionActions();
   const lastOcrText = useSessionStore(s => s.lastOcrText);
   const [phase, setPhase] = useState<Phase>('camera');
-  const [result, setResult] = useState<PlateResult | null>(null);
-  const [tmpPath, setTmpPath] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState<OrderNumberResult | null>(null);
 
-  /** Общий путь: снимок (реальный или dev) -> распознавание -> показ результата. */
   const processImage = async (path: string): Promise<void> => {
-    setTmpPath(path);
     setPhase('recognizing');
     try {
-      const res = await actions.recognizePlate(path);
+      const res = await actions.recognizeOrder(path);
       setResult(res);
     } catch {
       setResult({ ok: false, reason: 'not_found' });
@@ -38,7 +39,6 @@ export function PlateCaptureScreen({ navigation, route }: Props): React.JSX.Elem
     }
   };
 
-  /** Dev-захват (эмулятор/без камеры): генерирует файл и прогоняет mock-OCR. */
   const devCapture = async (): Promise<void> => {
     const path = await services.camera.capturePhoto();
     await processImage(path);
@@ -46,37 +46,27 @@ export function PlateCaptureScreen({ navigation, route }: Props): React.JSX.Elem
 
   const retake = (): void => {
     setResult(null);
-    setTmpPath(null);
     setPhase('camera');
   };
 
-  const confirm = async (): Promise<void> => {
-    if (result?.ok !== true || tmpPath === null || confirming) {
-      return; // ignore repeat taps while the case is being created
-    }
-    setConfirming(true);
-    try {
-      const caseId = await actions.startCase(result.plate, tmpPath, orderNumber);
-      // Real camera: go straight into the persistent capture screen.
-      // Dev/emulator: go to the session (capture happens via dev buttons there).
-      if (FEATURES.realCamera) {
-        navigation.replace('Capture', { caseId, initialMode: 'photo' });
-      } else {
-        navigation.replace('ActiveSession', { caseId });
-      }
-    } catch (e) {
-      Alert.alert(t('plate.startFailedTitle'), e instanceof Error ? e.message : String(e));
-    } finally {
-      setConfirming(false);
+  const confirm = (): void => {
+    if (result?.ok === true) {
+      navigation.replace('PlateCapture', { orderNumber: result.orderNumber });
     }
   };
 
-  // Реальная камера (на телефоне): живой preview с рамкой номера.
+  const errorText = (reason: 'not_found' | 'low_confidence' | 'ambiguous'): string => {
+    if (reason === 'ambiguous') {
+      return t('order.ambiguous');
+    }
+    return reason === 'low_confidence' ? t('order.lowConfidence') : t('order.notRecognized');
+  };
+
+  // Real camera (on the phone): live preview, no plate frame.
   if (phase === 'camera' && FEATURES.realCamera) {
     return (
       <CameraCapture
         mode="photo"
-        showPlateFrame
         onPhoto={path => {
           processImage(path).catch(() => undefined);
         }}
@@ -90,8 +80,8 @@ export function PlateCaptureScreen({ navigation, route }: Props): React.JSX.Elem
       {phase === 'camera' && (
         <View style={styles.cameraArea}>
           <View style={styles.hintBlock}>
-            <Text style={styles.hint}>{t('camera.shootCar')}</Text>
-            <Text style={styles.frameHint}>{t('camera.plateAnywhere')}</Text>
+            <Text style={styles.hint}>{t('order.shootForm')}</Text>
+            <Text style={styles.frameHint}>{t('order.hint')}</Text>
           </View>
           <PrimaryButton testID="shutter" title={t('plate.shoot')} onPress={devCapture} />
         </View>
@@ -100,7 +90,7 @@ export function PlateCaptureScreen({ navigation, route }: Props): React.JSX.Elem
       {phase === 'recognizing' && (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#1565c0" />
-          <Text style={styles.hint}>{t('plate.recognizing')}</Text>
+          <Text style={styles.hint}>{t('order.recognizing')}</Text>
         </View>
       )}
 
@@ -108,36 +98,23 @@ export function PlateCaptureScreen({ navigation, route }: Props): React.JSX.Elem
         <View style={styles.center}>
           {result?.ok === true ? (
             <>
-              <Text style={styles.plate} testID="recognized-plate">
-                {result.plate}
+              <Text style={styles.order} testID="recognized-order">
+                {result.orderNumber}
               </Text>
-              <Text style={styles.hint}>{t('plate.confirmQuestion')}</Text>
+              <Text style={styles.hint}>{t('order.confirmQuestion')}</Text>
               <View style={styles.actions}>
-                <PrimaryButton
-                  testID="confirm-plate"
-                  title={t('plate.correct')}
-                  onPress={confirm}
-                  loading={confirming}
-                />
+                <PrimaryButton testID="confirm-order" title={t('plate.correct')} onPress={confirm} />
                 <View style={styles.gap} />
-                <PrimaryButton
-                  title={t('plate.retake')}
-                  variant="secondary"
-                  onPress={retake}
-                  disabled={confirming}
-                />
+                <PrimaryButton title={t('plate.retake')} variant="secondary" onPress={retake} />
               </View>
             </>
           ) : (
             <>
-              <Text style={styles.error} testID="ocr-error">
-                {result?.reason === 'low_confidence'
-                  ? t('plate.lowConfidence')
-                  : t('plate.notRecognized')}
+              <Text style={styles.error} testID="order-error">
+                {errorText(result?.reason ?? 'not_found')}
               </Text>
-              {/* Diagnostics only in debug builds (__DEV__ is false in release). */}
               {__DEV__ && lastOcrText.length > 0 && (
-                <Text style={styles.debug} testID="ocr-debug">
+                <Text style={styles.debug} testID="order-ocr-debug">
                   {t('plate.ocrSaw', { text: lastOcrText })}
                 </Text>
               )}
@@ -157,7 +134,7 @@ const styles = StyleSheet.create({
   hint: { color: '#eee', fontSize: 18, fontWeight: '700', textAlign: 'center' },
   frameHint: { color: '#ffd54f', fontSize: 13, textAlign: 'center', marginTop: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  plate: { color: '#fff', fontSize: 44, fontWeight: '900', letterSpacing: 2 },
+  order: { color: '#fff', fontSize: 52, fontWeight: '900', letterSpacing: 4 },
   error: { color: '#ff8a80', fontSize: 16, textAlign: 'center', marginBottom: 12 },
   debug: { color: '#90a4ae', fontSize: 12, textAlign: 'center', marginBottom: 20 },
   actions: { marginTop: 32, alignSelf: 'stretch' },

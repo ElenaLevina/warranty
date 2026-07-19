@@ -6,11 +6,19 @@ export type RootStackParamList = {
   Users: undefined;
   /** Admin-only: create (no id) or edit (with id) a user. */
   UserEdit: { userId?: string };
-  PlateCapture: undefined;
+  /** Mandatory first step: scan the 6-digit repair-order number. */
+  OrderCapture: undefined;
+  /** Plate scan; requires the confirmed order number from the previous step. */
+  PlateCapture: { orderNumber: string };
   /** Persistent capture screen (multi photo/video with a Фото/Видео toggle). */
   Capture: { caseId: string; initialMode?: 'photo' | 'video' };
   ActiveSession: { caseId: string };
   /** Full-screen media viewer (open session only); photos can be annotated. */
   MediaViewer: { caseId: string; fileName: string; fileType: 'photo' | 'video' };
-  SessionComplete: { plate: string; photoCount: number; videoCount: number };
+  SessionComplete: {
+    plate: string;
+    photoCount: number;
+    videoCount: number;
+    orderNumber?: string;
+  };
 };

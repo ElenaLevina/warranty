@@ -38,7 +38,7 @@ function press(tree: ReactTestRenderer, testID: string): void {
 }
 
 describe('StartScreen', () => {
-  it('navigates to PlateCapture on "Начать осмотр"', async () => {
+  it('navigates to OrderCapture on "Начать осмотр"', async () => {
     const services = createTestServices({ ocrScript: okOcr });
     const nav = makeNav();
     let tree!: ReactTestRenderer;
@@ -52,7 +52,7 @@ describe('StartScreen', () => {
     await flush();
 
     await act(async () => press(tree, 'start-inspection'));
-    expect(nav.navigate).toHaveBeenCalledWith('PlateCapture');
+    expect(nav.navigate).toHaveBeenCalledWith('OrderCapture');
   });
 });
 
@@ -75,7 +75,7 @@ describe('PlateCaptureScreen', () => {
         <StoreProvider services={services}>
           <PlateCaptureScreen
             navigation={nav as never}
-            route={{ key: 'k', name: 'PlateCapture' } as never}
+            route={{ key: 'k', name: 'PlateCapture', params: { orderNumber: '113188' } } as never}
           />
         </StoreProvider>,
       );
@@ -94,7 +94,7 @@ describe('PlateCaptureScreen', () => {
 
     expect(nav.replace).toHaveBeenCalledWith(
       'ActiveSession',
-      expect.objectContaining({ caseId: expect.stringMatching(/^123-45-678_/) }),
+      expect.objectContaining({ caseId: expect.stringMatching(/^113188_123-45-678_/) }),
     );
     // кейс реально создан на (in-memory) диске
     const caseId = ((nav.replace as jest.Mock).mock.calls[0]?.[1] as { caseId: string }).caseId;

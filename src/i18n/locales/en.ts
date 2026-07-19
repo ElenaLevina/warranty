@@ -32,6 +32,17 @@ export const en = {
     ocrSaw: 'OCR saw: {{text}}',
     startFailedTitle: 'Could not open the session',
   },
+  order: {
+    title: 'Order number',
+    shootForm: 'Photograph the work order',
+    hint: 'The 6-digit order number is detected automatically. You can shoot just the number close-up.',
+    recognizing: 'Reading the order number…',
+    confirmQuestion: 'Order number recognized. Correct?',
+    orderLabel: 'Order № {{n}}',
+    notRecognized: 'Could not read the order number. Retake.',
+    lowConfidence: 'The order number was read with low confidence. Retake in good lighting.',
+    ambiguous: 'Several similar numbers in the frame. Shoot ONLY the order number, close-up.',
+  },
   camera: {
     shootCar: 'Photograph the car',
     plateAnywhere: 'The plate is detected automatically anywhere in the frame',

@@ -10,13 +10,18 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SessionComplete'>;
 
 export function SessionCompleteScreen({ navigation, route }: Props): React.JSX.Element {
   const { t } = useTranslation();
-  const { plate, photoCount, videoCount } = route.params;
+  const { plate, photoCount, videoCount, orderNumber } = route.params;
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.center}>
         <Text style={styles.check}>✓</Text>
         <Text style={styles.plate}>{plate}</Text>
+        {orderNumber !== undefined && (
+          <Text testID="order-number" style={styles.order}>
+            {t('order.orderLabel', { n: orderNumber })}
+          </Text>
+        )}
         <Text testID="summary" style={styles.summary}>
           {t('complete.saved', { photos: photoCount, videos: videoCount })}
         </Text>
@@ -47,5 +52,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   plate: { fontSize: 30, fontWeight: '900', color: '#222', marginTop: 24 },
+  order: { fontSize: 16, fontWeight: '700', color: '#1565c0', marginTop: 6 },
   summary: { fontSize: 16, color: '#666', marginTop: 10 },
 });

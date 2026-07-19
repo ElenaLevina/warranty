@@ -12,6 +12,7 @@ import { StartScreen } from '../screens/StartScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { UsersScreen } from '../screens/UsersScreen';
 import { UserEditScreen } from '../screens/UserEditScreen';
+import { OrderCaptureScreen } from '../screens/OrderCaptureScreen';
 import { PlateCaptureScreen } from '../screens/PlateCaptureScreen';
 import { CaptureScreen } from '../screens/CaptureScreen';
 import { ActiveSessionScreen } from '../screens/ActiveSessionScreen';
@@ -33,6 +34,7 @@ function AppStack(): React.JSX.Element {
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t('settings.title') }} />
       <Stack.Screen name="Users" component={UsersScreen} options={{ title: t('auth.manageUsers') }} />
       <Stack.Screen name="UserEdit" component={UserEditScreen} options={{ title: t('auth.editUser') }} />
+      <Stack.Screen name="OrderCapture" component={OrderCaptureScreen} options={{ title: t('order.title') }} />
       <Stack.Screen name="PlateCapture" component={PlateCaptureScreen} options={{ title: t('plate.title') }} />
       <Stack.Screen name="Capture" component={CaptureScreen} options={{ headerShown: false }} />
       <Stack.Screen

@@ -28,6 +28,8 @@ export interface SessionMeta {
   case_id: string;
   /** Отформатированный номер с дефисами: XXX-XX-XXX | XX-XXX-XX. */
   plate_number: string;
+  /** 6-digit repair-order number scanned from the work-order form. */
+  order_number?: string;
   /** ISO date-time начала сессии. */
   session_start: string;
   /** ISO date-time окончания; null пока status === 'open'. */

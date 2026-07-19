@@ -29,3 +29,12 @@ export interface OcrResult {
 export type PlateResult =
   | { ok: true; plate: string; format: PlateFormat }
   | { ok: false; reason: 'not_found' | 'low_confidence' };
+
+/**
+ * Результат разбора номера заявки (6 цифр) со скана бланка.
+ * 'ambiguous' — несколько равнозначных кандидатов (например, строка заявки и
+ * пробег одним шрифтом в кадре-фрагменте): просим переснять крупно сам номер.
+ */
+export type OrderNumberResult =
+  | { ok: true; orderNumber: string }
+  | { ok: false; reason: 'not_found' | 'low_confidence' | 'ambiguous' };

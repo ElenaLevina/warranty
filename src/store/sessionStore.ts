@@ -7,8 +7,15 @@
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppServices } from '../services/container';
-import type { OpenSessionSummary, PlateResult, SessionMeta, UploadStatus } from '../types';
+import type {
+  OpenSessionSummary,
+  OrderNumberResult,
+  PlateResult,
+  SessionMeta,
+  UploadStatus,
+} from '../types';
 import { pickPlate } from '../services/ocr/plateParser';
+import { pickOrderNumber } from '../services/ocr/orderNumberParser';
 
 export interface SessionState {
   phase: 'idle' | 'busy';
@@ -22,8 +29,10 @@ export interface SessionState {
 
   bootstrap(): Promise<void>;
   recognizePlate(imagePath: string): Promise<PlateResult>;
+  /** Scan the work-order form: OCR + parse; the photo is deleted afterwards. */
+  recognizeOrder(imagePath: string): Promise<OrderNumberResult>;
   /** Create a new case for the plate. Returns the generated case_id. */
-  startCase(plateNumber: string, plateImageTmpPath: string): Promise<string>;
+  startCase(plateNumber: string, plateImageTmpPath: string, orderNumber: string): Promise<string>;
   resume(caseId: string): Promise<void>;
   addPhoto(tmpPath: string): Promise<void>;
   addVideo(tmpPath: string, durationSec: number): Promise<void>;
@@ -150,11 +159,26 @@ export function createSessionStore(services: AppServices): SessionStore {
         });
       },
 
-      async startCase(plateNumber: string, plateImageTmpPath: string) {
+      async recognizeOrder(imagePath: string) {
+        return run(async () => {
+          const raw = await ocr.recognize(imagePath);
+          set({
+            lastOcrText: raw.candidates
+              .map(c => `${c.text} (${Math.round(c.confidence * 100)}%)`)
+              .join(' | '),
+          });
+          // The work-order photo is NOT part of the case: delete it right away.
+          await services.fs.unlink(imagePath).catch(() => undefined);
+          return pickOrderNumber(raw.candidates, config.ocrConfidenceThreshold);
+        });
+      },
+
+      async startCase(plateNumber: string, plateImageTmpPath: string, orderNumber: string) {
         return run(async () => {
           const mechanicId = requireMechanicId();
           const meta = await files.createCase({
             plateNumber,
+            orderNumber,
             mechanicId,
             mechanicRole: auth.current()?.role,
             deviceId: device.getDeviceId(),

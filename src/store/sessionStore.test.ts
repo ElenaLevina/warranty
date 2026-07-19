@@ -66,7 +66,7 @@ describe('sessionStore — full lifecycle', () => {
     const { store, services, events } = harness(okOcr);
     await seedTmp(services);
 
-    await store.getState().startCase(PLATE, '/tmp/plate.jpg');
+    await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
     expect(store.getState().active?.status).toBe('open');
     expect(store.getState().active?.plate_number).toBe(PLATE);
     expect(store.getState().uploads['plate.jpg']).toBe('pending');
@@ -96,7 +96,7 @@ describe('sessionStore — full lifecycle', () => {
   it('lists the open session in bootstrap and resumes it', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
-    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg');
+    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
     store.getState().leaveActive();
     expect(store.getState().active).toBeNull();
 
@@ -112,7 +112,7 @@ describe('sessionStore — full lifecycle', () => {
   it('finish is idempotent: a second finish does not throw and closes once', async () => {
     const { store, services, events } = harness(okOcr);
     await seedTmp(services);
-    await store.getState().startCase(PLATE, '/tmp/plate.jpg');
+    await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
 
     await store.getState().finish();
     // Repeat tap after the session is already closed must be a no-op, not a throw.
@@ -124,7 +124,7 @@ describe('sessionStore — full lifecycle', () => {
   it('surfaces the READ ONLY invariant as an error after finish', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
-    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg');
+    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
     await store.getState().finish();
 
     // активной сессии нет -> резюмируем закрытую и пытаемся писать

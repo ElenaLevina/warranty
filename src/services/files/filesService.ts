@@ -23,6 +23,8 @@ const READ_ONLY_MODE = 0o444;
 
 export interface CreateCaseParams {
   plateNumber: string;
+  /** 6-digit repair-order number (mandatory step before the plate scan). */
+  orderNumber: string;
   mechanicId: string;
   /** Role of the user who opened the case (metadata). */
   mechanicRole?: 'admin' | 'mechanic';
@@ -64,12 +66,16 @@ export class FilesService {
     return this.now().toISOString().slice(11, 19);
   }
 
-  /** Build a unique case id: `<plate>_<YYYYMMDD-HHMMSS>_<rand>`. */
-  private makeCaseId(plate: string): string {
+  /**
+   * Build a unique case id: `<order>_<plate>_<YYYYMMDD-HHMMSS>_<rand>`.
+   * The repair-order number goes first so the office finds the case folder
+   * on the PC by the order id from their own system.
+   */
+  private makeCaseId(orderNumber: string, plate: string): string {
     const iso = this.isoNow();
     const stamp = `${iso.slice(0, 10).replace(/-/g, '')}-${iso.slice(11, 19).replace(/:/g, '')}`;
     const rand = Math.random().toString(36).slice(2, 5);
-    return `${plate}_${stamp}_${rand}`;
+    return `${orderNumber}_${plate}_${stamp}_${rand}`;
   }
 
   // --- reading ---
@@ -119,8 +125,8 @@ export class FilesService {
    * session.json (status=open). Returns the meta (includes the generated case_id).
    */
   async createCase(params: CreateCaseParams): Promise<SessionMeta> {
-    const { plateNumber, mechanicId, mechanicRole, deviceId, plateImageTmpPath } = params;
-    const caseId = this.makeCaseId(plateNumber);
+    const { plateNumber, orderNumber, mechanicId, mechanicRole, deviceId, plateImageTmpPath } = params;
+    const caseId = this.makeCaseId(orderNumber, plateNumber);
 
     await this.fs.mkdir(this.caseDir(caseId));
     await this.crypto.sealFile(plateImageTmpPath, `${this.caseDir(caseId)}/plate.jpg`);
@@ -128,6 +134,7 @@ export class FilesService {
     const meta: SessionMeta = {
       case_id: caseId,
       plate_number: plateNumber,
+      order_number: orderNumber,
       session_start: this.isoNow(),
       session_end: null,
       mechanic_id: mechanicId,

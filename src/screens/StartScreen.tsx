@@ -69,7 +69,8 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
         <PrimaryButton
           testID="start-inspection"
           title={t('start.startInspection')}
-          onPress={() => navigation.navigate('PlateCapture')}
+          // The order-number scan is the mandatory first step of an inspection.
+          onPress={() => navigation.navigate('OrderCapture')}
         />
       </View>
 

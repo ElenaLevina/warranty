@@ -35,6 +35,7 @@ async function setup(): Promise<Ctx> {
 async function createOpenCase(svc: FilesService): Promise<SessionMeta> {
   return svc.createCase({
     plateNumber: PLATE,
+    orderNumber: '113188',
     mechanicId: 'user_042',
     plateImageTmpPath: '/tmp/plate.jpg',
   });
@@ -48,8 +49,9 @@ describe('FilesService.createCase', () => {
     expect(meta.status).toBe('open');
     expect(meta.session_end).toBeNull();
     expect(meta.plate_number).toBe(PLATE);
-    // case_id starts with the plate and is the folder name.
-    expect(meta.case_id.startsWith(`${PLATE}_`)).toBe(true);
+    // case_id starts with the order number, then the plate (folder name).
+    expect(meta.order_number).toBe('113188');
+    expect(meta.case_id.startsWith(`113188_${PLATE}_`)).toBe(true);
     expect(meta.files).toEqual([{ name: 'plate.jpg', type: 'photo', timestamp: '09:14:02' }]);
     expect(await fs.exists(`${ROOT}/${meta.case_id}/plate.jpg`)).toBe(true);
     expect(await fs.exists(`${ROOT}/${meta.case_id}/session.json`)).toBe(true);
@@ -77,6 +79,7 @@ describe('FilesService.createCase', () => {
     const { svc } = await setup();
     const meta = await svc.createCase({
       plateNumber: PLATE,
+      orderNumber: '113188',
       mechanicId: 'user_042',
       deviceId: 'dev_abc123abc123',
       plateImageTmpPath: '/tmp/plate.jpg',
@@ -169,11 +172,13 @@ describe('FilesService.setDescription + listOpenSessions', () => {
     await fs.writeFile('/tmp/plateB.jpg', 'B');
     await svc.createCase({
       plateNumber: '111-11-111',
+      orderNumber: '220011',
       mechanicId: 'user_aaa',
       plateImageTmpPath: '/tmp/plateA.jpg',
     });
     await svc.createCase({
       plateNumber: '22-222-22',
+      orderNumber: '220022',
       mechanicId: 'user_bbb',
       plateImageTmpPath: '/tmp/plateB.jpg',
     });
@@ -189,6 +194,7 @@ describe('FilesService.setDescription + listOpenSessions', () => {
     await fs.writeFile('/tmp/plate2.jpg', 'IMG2');
     const toClose = await svc.createCase({
       plateNumber: '12-345-67',
+      orderNumber: '220033',
       mechanicId: 'user_042',
       plateImageTmpPath: '/tmp/plate2.jpg',
     });

@@ -97,7 +97,12 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           try {
             await persistDescription(); // save the description BEFORE closing
             await actions.finish();
-            navigation.replace('SessionComplete', { plate, photoCount: p, videoCount: v });
+            navigation.replace('SessionComplete', {
+              plate,
+              photoCount: p,
+              videoCount: v,
+              ...(active.order_number !== undefined ? { orderNumber: active.order_number } : {}),
+            });
           } catch (e) {
             Alert.alert(t('session.finishFailedTitle'), e instanceof Error ? e.message : String(e));
           }
@@ -114,6 +119,11 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
           <Text style={styles.plate}>{active.plate_number}</Text>
+          {active.order_number !== undefined && (
+            <Text testID="order-number" style={styles.order}>
+              {t('order.orderLabel', { n: active.order_number })}
+            </Text>
+          )}
           <Text testID="file-counter" style={styles.counter}>
             {t('session.counter', { count: files.length, photos: photoCount, videos: videoCount })}
           </Text>
@@ -181,6 +191,7 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1, justifyContent: 'center', padding: 24 },
   empty: { textAlign: 'center', marginBottom: 24, color: '#444', fontSize: 18, fontWeight: '700' },
   plate: { fontSize: 32, fontWeight: '900', color: '#222', textAlign: 'center' },
+  order: { fontSize: 15, fontWeight: '700', color: '#1565c0', textAlign: 'center', marginTop: 4 },
   counter: { fontSize: 14, color: '#777', textAlign: 'center', marginTop: 6, marginBottom: 16 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   captureRow: { flexDirection: 'row', marginBottom: 4 },
