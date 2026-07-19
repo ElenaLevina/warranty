@@ -15,6 +15,7 @@ import { UserEditScreen } from '../screens/UserEditScreen';
 import { PlateCaptureScreen } from '../screens/PlateCaptureScreen';
 import { CaptureScreen } from '../screens/CaptureScreen';
 import { ActiveSessionScreen } from '../screens/ActiveSessionScreen';
+import { MediaViewerScreen } from '../screens/MediaViewerScreen';
 import { SessionCompleteScreen } from '../screens/SessionCompleteScreen';
 import { AdminSetupScreen } from '../screens/AdminSetupScreen';
 import { UserPickerScreen } from '../screens/UserPickerScreen';
@@ -38,6 +39,11 @@ function AppStack(): React.JSX.Element {
         name="ActiveSession"
         component={ActiveSessionScreen}
         options={{ title: t('session.title'), headerBackVisible: false }}
+      />
+      <Stack.Screen
+        name="MediaViewer"
+        component={MediaViewerScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="SessionComplete"

@@ -119,6 +119,15 @@ export const ar: Translation = {
     cannotRemoveAdmin: 'لا يمكن حذف المسؤول الأخير',
     noUsersYet: 'لا يوجد مستخدمون بعد',
   },
+  viewer: {
+    draw: '✏️ ارسم',
+    undo: 'تراجع عن الخط',
+    clear: 'مسح',
+    save: 'حفظ',
+    exitDraw: 'إلغاء الرسم',
+    saveFailedTitle: 'تعذّر حفظ التحديد',
+    loadFailed: 'تعذّر فتح الملف',
+  },
   notify: {
     caseOpened: 'تم فتح الحالة {{plate}}',
     uploadError: 'لا يوجد اتصال. تم حفظ الملف محليًا',

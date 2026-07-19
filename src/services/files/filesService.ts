@@ -172,6 +172,23 @@ export class FilesService {
     return entry;
   }
 
+  /**
+   * Replace an existing photo in place (green-pencil markup saved OVER the
+   * original — product decision; the original is not kept). Open sessions only:
+   * the write gate applies like for any other mutation.
+   */
+  async replacePhoto(caseId: string, fileName: string, tmpPath: string): Promise<SessionMeta> {
+    const meta = await this.assertOpen(caseId, 'replacePhoto');
+    const entry = meta.files.find(f => f.name === fileName);
+    if (entry === undefined || entry.type !== 'photo') {
+      throw new Error(`No photo "${fileName}" in case ${caseId}`);
+    }
+    await this.crypto.sealFile(tmpPath, `${this.caseDir(caseId)}/${fileName}`);
+    entry.timestamp = this.clockTime();
+    await this.writeSession(caseId, meta);
+    return meta;
+  }
+
   async setDescription(caseId: string, description: string): Promise<void> {
     const meta = await this.assertOpen(caseId, 'setDescription');
     meta.description = description;

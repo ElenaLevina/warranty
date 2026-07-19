@@ -129,12 +129,17 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 
 	dest := filepath.Join(dir, name)
 
-	// Idempotency: skip if already stored (safe retries). Writes are atomic
-	// (temp -> rename), so an existing file is always complete.
-	if _, statErr := os.Stat(dest); statErr == nil {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "already stored")
-		return
+	// Idempotency: skip if already stored with the SAME size (safe retries).
+	// A same-name file with a different size is a legitimate replacement
+	// (photo re-saved with green-pencil markup) and falls through to the
+	// atomic write below, which overwrites the previous version.
+	if st, statErr := os.Stat(dest); statErr == nil {
+		if declaredSize == 0 || st.Size() == declaredSize {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, "already stored")
+			return
+		}
+		log.Printf("replace %s/%s: size %d -> %d (marked-up photo)", caseID, name, st.Size(), declaredSize)
 	}
 
 	// Write atomically: temp file -> rename.

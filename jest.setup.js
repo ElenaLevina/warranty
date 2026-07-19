@@ -64,6 +64,22 @@ jest.mock('react-native-vision-camera', () => ({
 // gesture-handler / screens setup
 jest.mock('react-native-gesture-handler', () => ({}));
 
+// Media-viewer native deps (M1-M3) — lightweight stubs for Node tests.
+jest.mock('react-native-video', () => ({ __esModule: true, default: () => null }));
+jest.mock('react-native-svg', () => ({
+  __esModule: true,
+  default: () => null,
+  Path: () => null,
+}));
+jest.mock('react-native-view-shot', () => ({ __esModule: true, default: () => null }));
+jest.mock('react-native-create-thumbnail', () => ({
+  createThumbnail: jest.fn(() => Promise.resolve({ path: '/tmp/thumb.jpg' })),
+}));
+jest.mock('@bam.tech/react-native-image-resizer', () => ({
+  __esModule: true,
+  default: { createResizedImage: jest.fn(() => Promise.resolve({ uri: 'file:///tmp/resized.jpg' })) },
+}));
+
 // react-native-restart — no native restart in tests.
 jest.mock('react-native-restart', () => ({ __esModule: true, default: { restart: jest.fn() } }));
 

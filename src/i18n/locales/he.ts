@@ -119,6 +119,15 @@ export const he: Translation = {
     cannotRemoveAdmin: 'לא ניתן למחוק את המנהל האחרון',
     noUsersYet: 'אין עדיין משתמשים',
   },
+  viewer: {
+    draw: '✏️ צייר',
+    undo: 'בטל קו',
+    clear: 'נקה',
+    save: 'שמור',
+    exitDraw: 'בטל ציור',
+    saveFailedTitle: 'לא ניתן לשמור את הסימון',
+    loadFailed: 'לא ניתן לפתוח את הקובץ',
+  },
   notify: {
     caseOpened: 'מקרה {{plate}} נפתח',
     uploadError: 'אין חיבור. הקובץ נשמר מקומית',

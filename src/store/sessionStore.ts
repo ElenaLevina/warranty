@@ -28,6 +28,8 @@ export interface SessionState {
   addPhoto(tmpPath: string): Promise<void>;
   addVideo(tmpPath: string, durationSec: number): Promise<void>;
   setDescription(text: string): Promise<void>;
+  /** Save a marked-up photo OVER the original (open session only). */
+  replacePhoto(fileName: string, tmpPath: string): Promise<void>;
   finish(): Promise<void>;
   /** Retry the upload queue (called on network regained). */
   processUploads(): Promise<void>;
@@ -204,6 +206,21 @@ export function createSessionStore(services: AppServices): SessionStore {
         await run(async () => {
           await files.setDescription(active.case_id, text);
           await reloadActive(active.case_id);
+        });
+      },
+
+      async replacePhoto(fileName: string, tmpPath: string) {
+        const active = get().active;
+        if (active === null) {
+          return;
+        }
+        await run(async () => {
+          const meta = await files.replacePhoto(active.case_id, fileName, tmpPath);
+          // The modified photo must be re-uploaded: reset its queue status
+          // (enqueueUpload alone is idempotent and would keep 'uploaded').
+          index.updateUploadStatus(`${active.case_id}/${fileName}`, 'pending');
+          await preview.invalidate(active.case_id, fileName);
+          set({ active: meta, uploads: { ...get().uploads, [fileName]: 'pending' } });
         });
       },
 

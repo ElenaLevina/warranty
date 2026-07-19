@@ -117,6 +117,15 @@ export const en = {
     cannotRemoveAdmin: 'Cannot remove the last administrator',
     noUsersYet: 'No users yet',
   },
+  viewer: {
+    draw: '✏️ Draw',
+    undo: 'Undo',
+    clear: 'Clear',
+    save: 'Save',
+    exitDraw: 'Cancel drawing',
+    saveFailedTitle: 'Could not save the markup',
+    loadFailed: 'Could not open the file',
+  },
   notify: {
     caseOpened: 'Case {{plate}} opened',
     uploadError: 'No connection. File saved locally',

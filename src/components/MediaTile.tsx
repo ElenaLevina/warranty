@@ -48,7 +48,8 @@ export function MediaTile({ caseId, entry, onPress, version = 0 }: Props): React
       onPress={onPress === undefined ? undefined : () => onPress(entry)}>
       {thumb !== null ? (
         <Image
-          source={{ uri: `file://${thumb}?v=${version}` }}
+          // timestamp busts the RN image cache after the photo was redrawn
+          source={{ uri: `file://${thumb}?v=${entry.timestamp}-${version}` }}
           style={styles.image}
           resizeMode="cover"
         />

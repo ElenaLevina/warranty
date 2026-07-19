@@ -200,3 +200,44 @@ describe('FilesService.setDescription + listOpenSessions', () => {
     expect(open[0]?.file_count).toBe(1);
   });
 });
+
+describe('FilesService.replacePhoto (green-pencil markup)', () => {
+  it('replaces the photo bytes in place and bumps the entry timestamp', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.addPhoto(meta.case_id, '/tmp/shot.jpg');
+
+    await fs.writeFile('/tmp/marked.jpg', 'MARKED_IMG');
+    const updated = await svc.replacePhoto(meta.case_id, 'photo_001.jpg', '/tmp/marked.jpg');
+
+    // Same file name, new content, no extra entries.
+    expect(await fs.readFile(`${ROOT}/${meta.case_id}/photo_001.jpg`)).toBe('MARKED_IMG');
+    expect(updated.files.filter(f => f.name === 'photo_001.jpg')).toHaveLength(1);
+    expect(updated.files).toHaveLength(2); // plate.jpg + photo_001.jpg
+  });
+
+  it('rejects replacing a missing file or a video', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.addVideo(meta.case_id, '/tmp/clip.mp4', 10);
+    await fs.writeFile('/tmp/marked.jpg', 'MARKED_IMG');
+
+    await expect(svc.replacePhoto(meta.case_id, 'photo_009.jpg', '/tmp/marked.jpg')).rejects.toThrow();
+    await expect(svc.replacePhoto(meta.case_id, 'video_001.mp4', '/tmp/marked.jpg')).rejects.toThrow();
+  });
+
+  it('is blocked on a closed case (READ ONLY + tamper.log)', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.addPhoto(meta.case_id, '/tmp/shot.jpg');
+    await svc.closeCase(meta.case_id);
+
+    await fs.writeFile('/tmp/marked.jpg', 'MARKED_IMG');
+    await expect(
+      svc.replacePhoto(meta.case_id, 'photo_001.jpg', '/tmp/marked.jpg'),
+    ).rejects.toBeInstanceOf(SessionClosedError);
+    // Original bytes untouched, attempt logged.
+    expect(await fs.readFile(`${ROOT}/${meta.case_id}/photo_001.jpg`)).toBe('PHOTO_IMG');
+    expect(await fs.readFile(`${ROOT}/tamper.log`)).toContain('replacePhoto');
+  });
+});

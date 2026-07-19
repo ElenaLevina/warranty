@@ -118,6 +118,15 @@ export const ru: Translation = {
     cannotRemoveAdmin: 'Нельзя удалить последнего администратора',
     noUsersYet: 'Пользователей пока нет',
   },
+  viewer: {
+    draw: '✏️ Рисовать',
+    undo: 'Отменить штрих',
+    clear: 'Очистить',
+    save: 'Сохранить',
+    exitDraw: 'Отмена рисования',
+    saveFailedTitle: 'Не удалось сохранить разметку',
+    loadFailed: 'Не удалось открыть файл',
+  },
   notify: {
     caseOpened: 'Кейс {{plate}} открыт',
     uploadError: 'Нет подключения. Файл сохранён локально',
