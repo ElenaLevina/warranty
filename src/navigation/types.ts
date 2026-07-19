@@ -10,5 +10,7 @@ export type RootStackParamList = {
   /** Persistent capture screen (multi photo/video with a Фото/Видео toggle). */
   Capture: { caseId: string; initialMode?: 'photo' | 'video' };
   ActiveSession: { caseId: string };
+  /** Full-screen media viewer (open session only); photos can be annotated. */
+  MediaViewer: { caseId: string; fileName: string; fileType: 'photo' | 'video' };
   SessionComplete: { plate: string; photoCount: number; videoCount: number };
 };

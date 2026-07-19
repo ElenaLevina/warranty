@@ -37,7 +37,7 @@ export interface SessionState {
 export type SessionStore = StoreApi<SessionState>;
 
 export function createSessionStore(services: AppServices): SessionStore {
-  const { files, index, upload, notify, ocr, auth, device, crypto, config } = services;
+  const { files, index, upload, notify, ocr, auth, device, crypto, config, preview } = services;
 
   // Guard against a second "ЗАКОНЧИЛ" while the first finish is still running
   // (closeCase happens up front, but uploads afterwards can be slow).
@@ -224,6 +224,8 @@ export function createSessionStore(services: AppServices): SessionStore {
             });
             set({ active: null, uploads: {} });
             await refreshOpenSessions(set);
+            // Thumbnails of a closed case are no longer needed (READ ONLY).
+            await preview.clearCase(closed.case_id).catch(() => undefined);
             // Upload the whole case in the BACKGROUND — never block the UI/close.
             // Failures are retried by the queue (on reconnect / next start).
             void (async () => {

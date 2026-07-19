@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useServices, useSessionStore, useSessionActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { MediaTile } from '../components/MediaTile';
 import { FEATURES } from '../app/featureFlags';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveSession'>;
@@ -119,12 +120,18 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
           <View style={styles.grid}>
             {recent.map(f => (
-              <View key={f.name} style={styles.tile}>
-                <Text style={styles.tileIcon}>{f.type === 'video' ? '🎬' : '🖼'}</Text>
-                <Text style={styles.tileName} numberOfLines={1}>
-                  {f.name}
-                </Text>
-              </View>
+              <MediaTile
+                key={f.name}
+                caseId={active.case_id}
+                entry={f}
+                onPress={entry =>
+                  navigation.navigate('MediaViewer', {
+                    caseId: active.case_id,
+                    fileName: entry.name,
+                    fileType: entry.type,
+                  })
+                }
+              />
             ))}
           </View>
 
@@ -176,17 +183,6 @@ const styles = StyleSheet.create({
   plate: { fontSize: 32, fontWeight: '900', color: '#222', textAlign: 'center' },
   counter: { fontSize: 14, color: '#777', textAlign: 'center', marginTop: 6, marginBottom: 16 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  tile: {
-    width: '30%',
-    aspectRatio: 1,
-    borderRadius: 10,
-    backgroundColor: '#f2f4f7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 6,
-  },
-  tileIcon: { fontSize: 26 },
-  tileName: { fontSize: 10, color: '#555', marginVertical: 4 },
   captureRow: { flexDirection: 'row', marginBottom: 4 },
   gap: { width: 12 },
   bottomBar: {

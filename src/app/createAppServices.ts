@@ -10,6 +10,8 @@ import RNFS from 'react-native-fs';
 import { createRealServices, type AppServices, type NativeOverrides } from '../services/container';
 import { MlKitOcrService } from '../services/ocr/ocrService';
 import { KeystoreCryptoService } from '../services/crypto/keystoreCryptoService';
+import { NativeThumbnailer } from '../services/preview/nativeThumbnailer';
+import { RnfsFileSystem } from '../services/files/rnfsFileSystem';
 import { FEATURES } from './featureFlags';
 import type { OcrResult } from '../types';
 import type { NotifyEvent } from '../services/notify/notifyService';
@@ -39,6 +41,7 @@ export function createAppServices(): AppServices {
   const native: NativeOverrides = {
     ...(FEATURES.nativeOcr ? { ocr: new MlKitOcrService() } : {}),
     ...(FEATURES.nativeCrypto ? { crypto: new KeystoreCryptoService() } : {}),
+    thumbnailer: new NativeThumbnailer(new RnfsFileSystem()),
   };
   return createRealServices({
     casesRoot,

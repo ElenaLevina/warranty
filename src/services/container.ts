@@ -23,6 +23,7 @@ import { MockOcrService, type OcrService } from './ocr/ocrService';
 import { DevCameraService, type CameraService } from './camera/cameraService';
 import { createMmkvAuthService, type AuthService } from './auth/authService';
 import { MmkvDeviceService, type DeviceService } from './device/deviceService';
+import { CachedPreviewService, type PreviewService, type Thumbnailer } from './preview/previewService';
 import type { OcrResult } from '../types';
 
 /**
@@ -34,6 +35,8 @@ import type { OcrResult } from '../types';
 export interface NativeOverrides {
   ocr?: OcrService;
   crypto?: CryptoService;
+  /** Thumbnail generation (image resizer / video frame grab) on the device. */
+  thumbnailer?: Thumbnailer;
 }
 
 export interface AppServices {
@@ -49,6 +52,7 @@ export interface AppServices {
   auth: AuthService;
   device: DeviceService;
   uploadConfig: UploadConfig;
+  preview: PreviewService;
 }
 
 export interface RealServicesOptions {
@@ -84,7 +88,14 @@ export function createRealServices(opts: RealServicesOptions): AppServices {
   const camera = new DevCameraService(fs, opts.tmpDir);
   const auth = createMmkvAuthService(opts.indexEncryptionKey);
   const device = new MmkvDeviceService(opts.indexEncryptionKey);
-  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device, uploadConfig };
+  const preview = new CachedPreviewService(
+    fs,
+    crypto,
+    opts.casesRoot,
+    `${opts.tmpDir}/thumbs`,
+    opts.native?.thumbnailer ?? null,
+  );
+  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device, uploadConfig, preview };
 }
 
 export interface TestServicesOptions {
@@ -109,5 +120,7 @@ export function createTestServices(opts: TestServicesOptions = {}): AppServices 
   const auth = createMmkvAuthService();
   const device = new MmkvDeviceService();
   const uploadConfig = new MmkvUploadConfig();
-  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device, uploadConfig };
+  // No native thumbnailer in tests: getPreview returns null (icon fallback).
+  const preview = new CachedPreviewService(fs, crypto, casesRoot, '/data/tmp/thumbs', null);
+  return { config: APP_CONFIG, fs, crypto, files, index, upload, notify, ocr, camera, auth, device, uploadConfig, preview };
 }
