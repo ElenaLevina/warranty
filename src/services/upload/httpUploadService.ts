@@ -48,15 +48,34 @@ export class HttpUploadService implements UploadService {
       // eslint-disable-next-line no-await-in-loop
       await this.tryUpload(item);
     }
+    // session.json of finished cases is retried too: a finish while the PC was
+    // unreachable must not lose the case metadata (bug found in field testing).
+    for (const c of this.deps.index.getPendingCompletes()) {
+      // eslint-disable-next-line no-await-in-loop
+      await this.tryComplete(c.caseId, c.sessionJson);
+    }
   }
 
   async completeCase(caseId: string, sessionJson: string): Promise<void> {
-    const { config, transport } = this.deps;
+    // Persist first, remove on success — so an offline finish retries later
+    // (on reconnect / next app start) instead of losing session.json forever.
+    this.deps.index.setPendingComplete(caseId, sessionJson);
+    await this.tryComplete(caseId, sessionJson);
+  }
+
+  private async tryComplete(caseId: string, sessionJson: string): Promise<void> {
+    const { config, transport, index } = this.deps;
     const s = config.get();
     if (!s.enabled || s.baseUrl.length === 0) {
-      return;
+      return; // stays pending
     }
-    await transport.complete({ baseUrl: s.baseUrl, token: s.token, caseId, sessionJson });
+    try {
+      await transport.complete({ baseUrl: s.baseUrl, token: s.token, caseId, sessionJson });
+      index.removePendingComplete(caseId);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn(`[upload] complete failed ${caseId}:`, e instanceof Error ? e.message : e);
+    }
   }
 
   async checkConnection(): Promise<boolean> {

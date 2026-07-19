@@ -20,6 +20,7 @@ class FakeTransport implements UploadTransport {
   uploads: UploadFileParams[] = [];
   completes: CompleteParams[] = [];
   failUpload = false;
+  failComplete = false;
 
   async uploadFile(params: UploadFileParams): Promise<void> {
     if (this.failUpload) {
@@ -28,6 +29,9 @@ class FakeTransport implements UploadTransport {
     this.uploads.push(params);
   }
   async complete(params: CompleteParams): Promise<void> {
+    if (this.failComplete) {
+      throw new Error('network down');
+    }
     this.completes.push(params);
   }
   async health(): Promise<boolean> {
@@ -128,5 +132,38 @@ describe('HttpUploadService', () => {
     const off = harness({ enabled: false, baseUrl: '', token: '' });
     await off.svc.completeCase('caseX', '{}');
     expect(off.transport.completes).toHaveLength(0);
+  });
+});
+
+describe('HttpUploadService session.json retry (field-testing bug)', () => {
+  it('keeps session.json pending when the PC is unreachable and retries it in processQueue', async () => {
+    const { svc, idx, transport } = harness(ENABLED);
+
+    // Finish while the receiver is down: complete fails but is remembered.
+    transport.failComplete = true;
+    await svc.completeCase('caseX', '{"status":"closed"}');
+    expect(transport.completes).toHaveLength(0);
+    expect(idx.getPendingCompletes()).toEqual([
+      { caseId: 'caseX', sessionJson: '{"status":"closed"}' },
+    ]);
+
+    // Receiver back: the regular queue retry also flushes pending completes.
+    transport.failComplete = false;
+    await svc.processQueue();
+    expect(transport.completes).toHaveLength(1);
+    expect(idx.getPendingCompletes()).toEqual([]);
+  });
+
+  it('clears the pending marker on immediate success', async () => {
+    const { svc, idx } = harness(ENABLED);
+    await svc.completeCase('caseX', '{}');
+    expect(idx.getPendingCompletes()).toEqual([]);
+  });
+
+  it('keeps the marker while upload is disabled (sent after it is enabled)', async () => {
+    const { svc, idx, transport } = harness({ enabled: false, baseUrl: '', token: '' });
+    await svc.completeCase('caseX', '{}');
+    expect(idx.getPendingCompletes()).toHaveLength(1);
+    expect(transport.completes).toHaveLength(0);
   });
 });

@@ -8,6 +8,13 @@ import type { OpenSessionSummary, UploadQueueItem, UploadStatus } from '../../ty
 
 const KEY_OPEN_SESSIONS = 'open_sessions';
 const KEY_UPLOAD_QUEUE = 'upload_queue';
+const KEY_PENDING_COMPLETES = 'pending_completes';
+
+/** A case whose session.json has not reached the PC yet (retried like files). */
+export interface PendingComplete {
+  caseId: string;
+  sessionJson: string;
+}
 
 export interface StorageIndex {
   setOpenSessions(list: OpenSessionSummary[]): void;
@@ -16,6 +23,9 @@ export interface StorageIndex {
   removeFromQueue(filePath: string): void;
   updateUploadStatus(filePath: string, status: UploadStatus): void;
   getQueue(): UploadQueueItem[];
+  setPendingComplete(caseId: string, sessionJson: string): void;
+  removePendingComplete(caseId: string): void;
+  getPendingCompletes(): PendingComplete[];
   clear(): void;
 }
 
@@ -78,8 +88,24 @@ export class MmkvStorageIndex implements StorageIndex {
     return this.readJson<UploadQueueItem[]>(KEY_UPLOAD_QUEUE, []);
   }
 
+  setPendingComplete(caseId: string, sessionJson: string): void {
+    const list = this.getPendingCompletes().filter(c => c.caseId !== caseId);
+    list.push({ caseId, sessionJson });
+    this.writeJson(KEY_PENDING_COMPLETES, list);
+  }
+
+  removePendingComplete(caseId: string): void {
+    const list = this.getPendingCompletes().filter(c => c.caseId !== caseId);
+    this.writeJson(KEY_PENDING_COMPLETES, list);
+  }
+
+  getPendingCompletes(): PendingComplete[] {
+    return this.readJson<PendingComplete[]>(KEY_PENDING_COMPLETES, []);
+  }
+
   clear(): void {
     this.mmkv.delete(KEY_OPEN_SESSIONS);
     this.mmkv.delete(KEY_UPLOAD_QUEUE);
+    this.mmkv.delete(KEY_PENDING_COMPLETES);
   }
 }
