@@ -22,6 +22,8 @@ export interface StorageIndex {
   enqueueUpload(item: UploadQueueItem): void;
   removeFromQueue(filePath: string): void;
   updateUploadStatus(filePath: string, status: UploadStatus): void;
+  /** Rewrite queued filePaths after a case folder was renamed (`<old>/…`→`<new>/…`). */
+  renameCasePrefix(oldCaseId: string, newCaseId: string): void;
   getQueue(): UploadQueueItem[];
   setPendingComplete(caseId: string, sessionJson: string): void;
   removePendingComplete(caseId: string): void;
@@ -80,6 +82,17 @@ export class MmkvStorageIndex implements StorageIndex {
   updateUploadStatus(filePath: string, status: UploadStatus): void {
     const queue = this.getQueue().map(q =>
       q.filePath === filePath ? { ...q, status } : q,
+    );
+    this.writeJson(KEY_UPLOAD_QUEUE, queue);
+  }
+
+  renameCasePrefix(oldCaseId: string, newCaseId: string): void {
+    const oldPrefix = `${oldCaseId}/`;
+    const newPrefix = `${newCaseId}/`;
+    const queue = this.getQueue().map(q =>
+      q.filePath.startsWith(oldPrefix)
+        ? { ...q, filePath: newPrefix + q.filePath.slice(oldPrefix.length), status: 'pending' as UploadStatus }
+        : q,
     );
     this.writeJson(KEY_UPLOAD_QUEUE, queue);
   }

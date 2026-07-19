@@ -94,7 +94,7 @@ describe('PlateCaptureScreen', () => {
 
     expect(nav.replace).toHaveBeenCalledWith(
       'ActiveSession',
-      expect.objectContaining({ caseId: expect.stringMatching(/^113188_123-45-678_/) }),
+      expect.objectContaining({ caseId: expect.stringMatching(/^123-45-678_113188_/) }),
     );
     // кейс реально создан на (in-memory) диске
     const caseId = ((nav.replace as jest.Mock).mock.calls[0]?.[1] as { caseId: string }).caseId;

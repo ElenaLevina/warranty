@@ -8,6 +8,9 @@ export type SessionStatus = 'open' | 'closed';
 
 export type CaseFileType = 'photo' | 'video';
 
+/** Card type (סוג כרטיס). Folder suffix letter: warranty -> w, recall -> r. */
+export type OrderType = 'warranty' | 'recall';
+
 /** Элемент массива files[] в session.json. */
 export interface CaseFileEntry {
   /** Имя файла внутри папки кейса: plate.jpg | photo_NNN.jpg | video_NNN.mp4 */
@@ -22,14 +25,17 @@ export interface CaseFileEntry {
 /** Содержимое session.json. Источник правды о сессии на диске. */
 export interface SessionMeta {
   /**
-   * Уникальный идентификатор кейса = имя папки: `<номер>_<дата-время>_<rand>`.
-   * Позволяет несколько кейсов на один и тот же номер (разные гарантийные случаи).
+   * Case id = folder name: `<plate>_<order>_<YYYYMMDD>` while open, and
+   * `<plate>_<order>_<YYYYMMDD>_<w|r>` once the card type is chosen at finish.
+   * Same-day repeats for the same plate+order get a `-2`, `-3` suffix.
    */
   case_id: string;
   /** Отформатированный номер с дефисами: XXX-XX-XXX | XX-XXX-XX. */
   plate_number: string;
   /** 6-digit repair-order number scanned from the work-order form. */
   order_number?: string;
+  /** Card type (סוג כרטיס). Folder suffix: warranty -> w, recall -> r. */
+  order_type?: OrderType;
   /** ISO date-time начала сессии. */
   session_start: string;
   /** ISO date-time окончания; null пока status === 'open'. */

@@ -10,6 +10,7 @@ import type { AppServices } from '../services/container';
 import type {
   OpenSessionSummary,
   OrderNumberResult,
+  OrderType,
   PlateResult,
   SessionMeta,
   UploadStatus,
@@ -37,6 +38,8 @@ export interface SessionState {
   addPhoto(tmpPath: string): Promise<void>;
   addVideo(tmpPath: string, durationSec: number): Promise<void>;
   setDescription(text: string): Promise<void>;
+  /** Set the card type (סוג כרטיס) — required before finish; sets the folder letter. */
+  setOrderType(orderType: OrderType): Promise<void>;
   /** Save a marked-up photo OVER the original (open session only). */
   replacePhoto(fileName: string, tmpPath: string): Promise<void>;
   finish(): Promise<void>;
@@ -233,6 +236,17 @@ export function createSessionStore(services: AppServices): SessionStore {
         });
       },
 
+      async setOrderType(orderType) {
+        const active = get().active;
+        if (active === null) {
+          return;
+        }
+        await run(async () => {
+          const meta = await files.setOrderType(active.case_id, orderType);
+          set({ active: meta });
+        });
+      },
+
       async replacePhoto(fileName: string, tmpPath: string) {
         const active = get().active;
         if (active === null) {
@@ -254,10 +268,23 @@ export function createSessionStore(services: AppServices): SessionStore {
         if (active === null || finishing) {
           return;
         }
+        // The card type (סוג כרטיס) is mandatory before a case can be closed;
+        // it also decides the folder-name letter. UI disables the button too.
+        if (active.order_type === undefined) {
+          set({ error: 'session.orderTypeRequired' });
+          return;
+        }
         finishing = true;
         try {
           await run(async () => {
-            const closed = await files.closeCase(active.case_id);
+            const openId = active.case_id;
+            const closed = await files.closeCase(openId);
+            // The folder was renamed (…_w/_r): repoint the upload queue and drop
+            // stale thumbnails so files/session.json reach the PC under the final name.
+            if (closed.case_id !== openId) {
+              index.renameCasePrefix(openId, closed.case_id);
+              await preview.clearCase(openId).catch(() => undefined);
+            }
             notify.emit({
               kind: 'caseClosed',
               plate: active.plate_number,

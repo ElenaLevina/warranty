@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Alert, Keyboard } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,10 +8,12 @@ import { useServices, useSessionStore, useSessionActions } from '../store/StoreP
 import { PrimaryButton } from '../components/PrimaryButton';
 import { MediaTile } from '../components/MediaTile';
 import { FEATURES } from '../app/featureFlags';
+import type { OrderType } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveSession'>;
 
 const DEV_VIDEO_DURATION_SEC = 8;
+const ORDER_TYPES: OrderType[] = ['warranty', 'recall'];
 
 export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const { t } = useTranslation();
@@ -19,25 +21,8 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const actions = useSessionActions();
   const active = useSessionStore(s => s.active);
   const phase = useSessionStore(s => s.phase);
-  const [description, setDescription] = useState(active?.description ?? '');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const insets = useSafeAreaInsets();
-
-  // Lift the bottom bar above the keyboard. RN 0.85 edge-to-edge means
-  // adjustResize doesn't shrink the window, and the reported keyboard height
-  // omits the system navigation bar — so we add the safe-area bottom inset.
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', e =>
-      setKeyboardHeight(e.endCoordinates.height),
-    );
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-
-  const barLift = keyboardHeight > 0 ? keyboardHeight + insets.bottom : insets.bottom;
+  const [typePickerOpen, setTypePickerOpen] = useState(false);
 
   if (active === null) {
     return (
@@ -58,14 +43,12 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const photoCount = files.filter(f => f.type === 'photo').length;
   const videoCount = files.filter(f => f.type === 'video').length;
   const recent = files.slice(-9);
+  const orderType = active.order_type;
 
-  // Persist the typed description to disk. Called before any transition
-  // (finish / open camera) so the latest text is never lost.
-  const persistDescription = (): Promise<void> =>
-    actions.setDescription(description).catch(() => undefined);
+  const typeLabel = (v: OrderType): string =>
+    v === 'recall' ? t('session.orderTypeRecall') : t('session.orderTypeWarranty');
 
   const onPhoto = async (): Promise<void> => {
-    await persistDescription();
     if (FEATURES.realCamera) {
       navigation.navigate('Capture', { caseId: active.case_id, initialMode: 'photo' });
       return;
@@ -75,13 +58,17 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   };
 
   const onVideo = async (): Promise<void> => {
-    await persistDescription();
     if (FEATURES.realCamera) {
       navigation.navigate('Capture', { caseId: active.case_id, initialMode: 'video' });
       return;
     }
     const clip = await services.camera.captureVideo(DEV_VIDEO_DURATION_SEC);
     await actions.addVideo(clip.path, clip.durationSec);
+  };
+
+  const pickType = (v: OrderType): void => {
+    setTypePickerOpen(false);
+    actions.setOrderType(v).catch(() => undefined);
   };
 
   const finish = (): void => {
@@ -95,7 +82,6 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           const p = photoCount;
           const v = videoCount;
           try {
-            await persistDescription(); // save the description BEFORE closing
             await actions.finish();
             navigation.replace('SessionComplete', {
               plate,
@@ -114,10 +100,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.flex}>
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
           <Text style={styles.plate}>{active.plate_number}</Text>
           {active.order_number !== undefined && (
             <Text testID="order-number" style={styles.order}>
@@ -156,30 +139,47 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           </View>
         </ScrollView>
 
-        {/* Bottom bar lifted above the keyboard (and the system nav bar when
-            the keyboard is closed), so description + ЗАКОНЧИЛ stay visible. */}
-        <View style={[styles.bottomBar, { marginBottom: barLift }]}>
-          <Text style={styles.label}>{t('session.description')}</Text>
-          <TextInput
-            testID="description-input"
-            style={styles.input}
-            multiline
-            placeholder={t('session.descriptionPlaceholder')}
-            value={description}
-            onChangeText={setDescription}
-            onBlur={() => {
-              void persistDescription();
-            }}
-          />
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+          {/* Card type (סוג כרטיס): mandatory before finishing. */}
+          <Text style={styles.label}>{t('session.orderType')}</Text>
+          <Pressable
+            testID="order-type-select"
+            style={styles.select}
+            onPress={() => setTypePickerOpen(true)}>
+            <Text style={orderType === undefined ? styles.selectPlaceholder : styles.selectValue}>
+              {orderType === undefined ? t('session.orderTypePlaceholder') : typeLabel(orderType)}
+            </Text>
+            <Text style={styles.selectChevron}>▾</Text>
+          </Pressable>
+
+          <View style={styles.finishGap} />
           <PrimaryButton
             testID="finish-session"
             title={t('session.finish')}
             variant="danger"
             onPress={finish}
+            disabled={orderType === undefined}
             loading={phase === 'busy'}
           />
         </View>
       </View>
+
+      <Modal visible={typePickerOpen} transparent animationType="fade" onRequestClose={() => setTypePickerOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setTypePickerOpen(false)}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('session.orderType')}</Text>
+            {ORDER_TYPES.map(v => (
+              <Pressable
+                key={v}
+                testID={`order-type-${v}`}
+                style={styles.modalOption}
+                onPress={() => pickType(v)}>
+                <Text style={styles.modalOptionText}>{typeLabel(v)}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -199,23 +199,34 @@ const styles = StyleSheet.create({
   bottomBar: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: '#eceff1',
     backgroundColor: '#fff',
   },
   label: { fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 6 },
-  input: {
+  select: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#cfd8dc',
     borderRadius: 10,
-    padding: 12,
-    minHeight: 56,
-    maxHeight: 110,
-    textAlignVertical: 'top',
-    fontSize: 15,
-    marginBottom: 12,
-    color: '#222',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     backgroundColor: '#fff',
   },
+  selectPlaceholder: { fontSize: 16, color: '#9aa5ad' },
+  selectValue: { fontSize: 16, color: '#222', fontWeight: '700' },
+  selectChevron: { fontSize: 14, color: '#607d8b' },
+  finishGap: { height: 12 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  modalCard: { backgroundColor: '#fff', borderRadius: 14, padding: 8 },
+  modalTitle: { fontSize: 14, fontWeight: '700', color: '#607d8b', padding: 12 },
+  modalOption: { paddingVertical: 16, paddingHorizontal: 12, borderRadius: 10 },
+  modalOptionText: { fontSize: 18, color: '#222', fontWeight: '600' },
 });

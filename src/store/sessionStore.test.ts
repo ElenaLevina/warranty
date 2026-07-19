@@ -84,6 +84,8 @@ describe('sessionStore — full lifecycle', () => {
     expect(active?.description).toBe('Трещина в блоке цилиндров.');
     expect(store.getState().uploads['video_001.mp4']).toBe('pending');
 
+    // Card type is mandatory before finishing; it also adds the folder letter.
+    await store.getState().setOrderType('warranty');
     await store.getState().finish();
     expect(store.getState().active).toBeNull();
 
@@ -113,6 +115,7 @@ describe('sessionStore — full lifecycle', () => {
     const { store, services, events } = harness(okOcr);
     await seedTmp(services);
     await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    await store.getState().setOrderType('warranty');
 
     await store.getState().finish();
     // Repeat tap after the session is already closed must be a no-op, not a throw.
@@ -125,15 +128,42 @@ describe('sessionStore — full lifecycle', () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
     const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    await store.getState().setOrderType('warranty');
     await store.getState().finish();
 
-    // активной сессии нет -> резюмируем закрытую и пытаемся писать
-    await store.getState().resume(caseId);
+    // The folder was renamed to <base>_w on close; resume the closed case there.
+    await store.getState().resume(`${caseId}_w`);
     await expect(store.getState().addPhoto('/tmp/shot.jpg')).rejects.toThrow();
     expect(store.getState().error).toContain('закрыт');
 
     // tamper.log зафиксировал попытку
     const log = await services.fs.readFile('/data/cases/tamper.log');
     expect(log).toContain('addPhoto');
+  });
+
+  it('blocks finish until the card type (order_type) is selected', async () => {
+    const { store, services, events } = harness(okOcr);
+    await seedTmp(services);
+    await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+
+    await store.getState().finish(); // no order_type yet
+    expect(store.getState().active).not.toBeNull();
+    expect(store.getState().error).toBe('session.orderTypeRequired');
+    expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
+  });
+
+  it('renames the folder and repoints the upload queue on finish', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    await store.getState().addPhoto('/tmp/shot.jpg');
+    await store.getState().setOrderType('recall');
+    await store.getState().finish();
+
+    const finalId = `${caseId}_r`;
+    expect((await services.files.readSession(finalId)).order_type).toBe('recall');
+    const queue = services.index.getQueue();
+    expect(queue.length).toBeGreaterThan(0);
+    expect(queue.every(i => i.filePath.startsWith(`${finalId}/`))).toBe(true);
   });
 });

@@ -13,7 +13,7 @@
  *  - Numbering: plate.jpg is always the first photo; photo_NNN.jpg and
  *    video_NNN.mp4 have independent counters starting at 001.
  */
-import type { CaseFileEntry, OpenSessionSummary, SessionMeta } from '../../types';
+import type { CaseFileEntry, OpenSessionSummary, OrderType, SessionMeta } from '../../types';
 import type { FileSystem } from './fileSystem';
 import type { CryptoService } from '../crypto/cryptoService';
 import { APP_CONFIG } from '../../config';
@@ -66,16 +66,40 @@ export class FilesService {
     return this.now().toISOString().slice(11, 19);
   }
 
+  /** Folder-suffix letter for the card type: warranty -> w, recall -> r. */
+  private typeLetter(type: OrderType): string {
+    return type === 'recall' ? 'r' : 'w';
+  }
+
   /**
-   * Build a unique case id: `<order>_<plate>_<YYYYMMDD-HHMMSS>_<rand>`.
-   * The repair-order number goes first so the office finds the case folder
-   * on the PC by the order id from their own system.
+   * Build the OPEN case id (folder name) `<plate>_<order>_<YYYYMMDD>`, made
+   * unique against existing case folders. The card-type letter is appended
+   * later, at finish (renameForType). Uniqueness of the base guarantees the
+   * later `_<letter>` folder is free too (nothing else starts with the base),
+   * so same-day repeats for the same plate+order get a `-2`, `-3` suffix.
    */
-  private makeCaseId(orderNumber: string, plate: string): string {
-    const iso = this.isoNow();
-    const stamp = `${iso.slice(0, 10).replace(/-/g, '')}-${iso.slice(11, 19).replace(/:/g, '')}`;
-    const rand = Math.random().toString(36).slice(2, 5);
-    return `${orderNumber}_${plate}_${stamp}_${rand}`;
+  private async makeBaseId(orderNumber: string, plate: string): Promise<string> {
+    const date = this.isoNow().slice(0, 10).replace(/-/g, '');
+    const base = `${plate}_${orderNumber}_${date}`;
+    const dirs = await this.existingCaseDirNames();
+    const free = (b: string): boolean => !dirs.some(d => d === b || d.startsWith(`${b}_`));
+    if (free(base)) {
+      return base;
+    }
+    for (let i = 2; ; i++) {
+      const candidate = `${base}-${i}`;
+      if (free(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  private async existingCaseDirNames(): Promise<string[]> {
+    if (!(await this.fs.exists(this.casesRoot))) {
+      return [];
+    }
+    const entries = await this.fs.readDir(this.casesRoot);
+    return entries.filter(e => e.isDirectory).map(e => e.name);
   }
 
   // --- reading ---
@@ -126,7 +150,7 @@ export class FilesService {
    */
   async createCase(params: CreateCaseParams): Promise<SessionMeta> {
     const { plateNumber, orderNumber, mechanicId, mechanicRole, deviceId, plateImageTmpPath } = params;
-    const caseId = this.makeCaseId(orderNumber, plateNumber);
+    const caseId = await this.makeBaseId(orderNumber, plateNumber);
 
     await this.fs.mkdir(this.caseDir(caseId));
     await this.crypto.sealFile(plateImageTmpPath, `${this.caseDir(caseId)}/plate.jpg`);
@@ -202,15 +226,49 @@ export class FilesService {
     await this.writeSession(caseId, meta);
   }
 
-  /** Close the case: status=closed, session_end=now, READ ONLY (chmod best-effort). */
+  /** Set the card type (סוג כרטיס). Folder is renamed later, at closeCase. */
+  async setOrderType(caseId: string, orderType: OrderType): Promise<SessionMeta> {
+    const meta = await this.assertOpen(caseId, 'setOrderType');
+    meta.order_type = orderType;
+    await this.writeSession(caseId, meta);
+    return meta;
+  }
+
+  /** Move every file of a case folder to a new folder name, then drop the old dir. */
+  private async renameCaseFolder(oldId: string, newId: string): Promise<void> {
+    const oldDir = this.caseDir(oldId);
+    const newDir = this.caseDir(newId);
+    await this.fs.mkdir(newDir);
+    const entries = await this.fs.readDir(oldDir);
+    for (const e of entries) {
+      if (e.isFile) {
+        await this.fs.moveFile(e.path, `${newDir}/${e.name}`);
+      }
+    }
+    await this.fs.unlink(oldDir).catch(() => undefined); // best-effort: remove empty dir
+  }
+
+  /**
+   * Close the case: status=closed, session_end=now, and — once the card type is
+   * known — rename the folder to `<base>_<w|r>`. Returns the meta with the final
+   * case_id. READ ONLY (chmod best-effort) is applied to the final folder.
+   */
   async closeCase(caseId: string): Promise<SessionMeta> {
     const meta = await this.assertOpen(caseId, 'closeCase');
     meta.status = 'closed';
     meta.session_end = this.isoNow();
-    await this.writeSession(caseId, meta);
+
+    // Append the card-type letter to the folder name (rename), if chosen.
+    if (meta.order_type !== undefined) {
+      const finalId = `${caseId}_${this.typeLetter(meta.order_type)}`;
+      await this.renameCaseFolder(caseId, finalId);
+      meta.case_id = finalId;
+    }
+    const finalId = meta.case_id;
+    await this.writeSession(finalId, meta);
 
     // Defense-in-depth: drop the write bit on the case files (no-op on some FS).
-    const dir = this.caseDir(caseId);
+    const dir = this.caseDir(finalId);
     const entries = await this.fs.readDir(dir);
     for (const e of entries) {
       if (e.isFile) {

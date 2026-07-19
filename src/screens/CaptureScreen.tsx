@@ -19,9 +19,9 @@ export function CaptureScreen({ navigation, route }: Props): React.JSX.Element {
   const actions = useSessionActions();
   const active = useSessionStore(s => s.active);
 
-  // Count only files captured here (exclude the mandatory plate.jpg).
+  // The plate photo counts as the first photo (per product decision).
   const files = active?.files ?? [];
-  const photoCount = files.filter(f => f.type === 'photo' && f.name !== 'plate.jpg').length;
+  const photoCount = files.filter(f => f.type === 'photo').length;
   const videoCount = files.filter(f => f.type === 'video').length;
 
   const goToSession = (): void => {

@@ -49,9 +49,9 @@ describe('FilesService.createCase', () => {
     expect(meta.status).toBe('open');
     expect(meta.session_end).toBeNull();
     expect(meta.plate_number).toBe(PLATE);
-    // case_id starts with the order number, then the plate (folder name).
+    // Open case_id = <plate>_<order>_<YYYYMMDD> (letter added at finish).
     expect(meta.order_number).toBe('113188');
-    expect(meta.case_id.startsWith(`113188_${PLATE}_`)).toBe(true);
+    expect(meta.case_id).toMatch(new RegExp(`^${PLATE}_113188_\\d{8}$`));
     expect(meta.files).toEqual([{ name: 'plate.jpg', type: 'photo', timestamp: '09:14:02' }]);
     expect(await fs.exists(`${ROOT}/${meta.case_id}/plate.jpg`)).toBe(true);
     expect(await fs.exists(`${ROOT}/${meta.case_id}/session.json`)).toBe(true);
@@ -245,5 +245,47 @@ describe('FilesService.replacePhoto (green-pencil markup)', () => {
     // Original bytes untouched, attempt logged.
     expect(await fs.readFile(`${ROOT}/${meta.case_id}/photo_001.jpg`)).toBe('PHOTO_IMG');
     expect(await fs.readFile(`${ROOT}/tamper.log`)).toContain('replacePhoto');
+  });
+});
+
+describe('FilesService.setOrderType + folder rename on close', () => {
+  it('renames the folder to <base>_w on close for a warranty card', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.addPhoto(meta.case_id, '/tmp/shot.jpg');
+
+    await svc.setOrderType(meta.case_id, 'warranty');
+    const closed = await svc.closeCase(meta.case_id);
+
+    expect(closed.case_id).toBe(`${meta.case_id}_w`);
+    expect(closed.order_type).toBe('warranty');
+    // files moved to the new folder; the old folder no longer holds them
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/plate.jpg`)).toBe(true);
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/photo_001.jpg`)).toBe(true);
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/session.json`)).toBe(true);
+    expect(await fs.exists(`${ROOT}/${meta.case_id}/plate.jpg`)).toBe(false);
+    // session.json is readable under the final id and marked closed
+    expect((await svc.readSession(closed.case_id)).status).toBe('closed');
+  });
+
+  it('uses _r for a recall card', async () => {
+    const { svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.setOrderType(meta.case_id, 'recall');
+    const closed = await svc.closeCase(meta.case_id);
+    expect(closed.case_id).toBe(`${meta.case_id}_r`);
+  });
+
+  it('gives a -2 base for a same-day repeat of the same plate+order', async () => {
+    const { svc } = await setup();
+    const a = await createOpenCase(svc);
+    const b = await createOpenCase(svc);
+    expect(b.case_id).toBe(`${a.case_id}-2`);
+
+    // Even after the first case is closed+renamed, the base stays reserved.
+    await svc.setOrderType(a.case_id, 'warranty');
+    await svc.closeCase(a.case_id);
+    const c = await createOpenCase(svc);
+    expect(c.case_id).toBe(`${a.case_id}-3`);
   });
 });

@@ -42,3 +42,27 @@ describe('MmkvStorageIndex', () => {
     expect(idx.getQueue()).toHaveLength(0);
   });
 });
+
+describe('MmkvStorageIndex.renameCasePrefix', () => {
+  it('repoints queued filePaths and resets their status to pending', () => {
+    const idx = new MmkvStorageIndex();
+    idx.clear();
+    const base = {
+      plateNumber: '123-45-678',
+      status: 'uploaded' as const,
+      attempts: 0,
+      enqueuedAt: '2026-05-25T09:14:00.000Z',
+    };
+    idx.enqueueUpload({ ...base, filePath: 'A_B_20260525/plate.jpg', fileName: 'plate.jpg' });
+    idx.enqueueUpload({ ...base, filePath: 'OTHER/photo.jpg', fileName: 'photo.jpg' });
+
+    idx.renameCasePrefix('A_B_20260525', 'A_B_20260525_w');
+
+    const q = idx.getQueue();
+    expect(q.find(i => i.fileName === 'plate.jpg')?.filePath).toBe('A_B_20260525_w/plate.jpg');
+    expect(q.find(i => i.fileName === 'plate.jpg')?.status).toBe('pending');
+    // Unrelated entries are untouched.
+    expect(q.find(i => i.fileName === 'photo.jpg')?.filePath).toBe('OTHER/photo.jpg');
+    expect(q.find(i => i.fileName === 'photo.jpg')?.status).toBe('uploaded');
+  });
+});
