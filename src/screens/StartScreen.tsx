@@ -61,7 +61,10 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
       </View>
 
       <View style={styles.header}>
-        <Text style={styles.logo}>🔧 Warranty</Text>
+        <View style={styles.logoRow}>
+            <Text style={styles.logoEmoji}>🔧</Text>
+            <Text style={styles.logo}>Warranty</Text>
+          </View>
         <Text style={styles.subtitle}>{t('start.subtitle')}</Text>
       </View>
 
@@ -107,6 +110,8 @@ const styles = StyleSheet.create({
   settings: { fontSize: 14, color: '#1565c0', fontWeight: '600' },
   lock: { fontSize: 14, color: '#1565c0', fontWeight: '600' },
   header: { alignItems: 'center', marginTop: 24 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'ltr' },
+  logoEmoji: { fontSize: 34 },
   logo: { fontSize: 34, fontWeight: '800', color: '#1565c0' },
   subtitle: { fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' },
   cta: { marginTop: 48 },

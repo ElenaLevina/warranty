@@ -29,7 +29,10 @@ export function AdminSetupScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.logo}>🔧 Warranty</Text>
+          <View style={styles.logoRow}>
+            <Text style={styles.logoEmoji}>🔧</Text>
+            <Text style={styles.logo}>Warranty</Text>
+          </View>
           <Text style={styles.title}>{t('auth.adminSetupTitle')}</Text>
           <Text style={styles.hint}>{t('auth.adminSetupHint')}</Text>
         </View>
@@ -92,6 +95,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 24 },
   header: { alignItems: 'center', marginTop: 8, marginBottom: 16 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'ltr' },
+  logoEmoji: { fontSize: 30 },
   logo: { fontSize: 30, fontWeight: '800', color: '#1565c0' },
   title: { fontSize: 18, fontWeight: '800', color: '#222', marginTop: 12 },
   hint: { fontSize: 13, color: '#666', marginTop: 6, textAlign: 'center' },
