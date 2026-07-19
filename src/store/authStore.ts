@@ -15,9 +15,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AuthService, User } from '../services/auth/authService';
 import { isValidPin } from '../services/users/userService';
-import { stashAutoLogin, takeAutoLogin, type AppLanguage } from '../i18n/languageStore';
-import { directionWillFlip } from '../i18n/rtl';
-import { setAppLanguage } from '../i18n';
+import { takeAutoLogin, type AppLanguage } from '../i18n/languageStore';
 
 export type AuthStatus = 'no-users' | 'locked' | 'authenticated';
 
@@ -57,18 +55,10 @@ function statusFor(auth: AuthService): AuthStatus {
 }
 
 /**
- * Applying a user's language may flip the layout direction, which restarts the
- * app and would drop the in-memory session (the user would land on the picker
- * again right after entering the PIN). So: stash a one-shot auto-login marker
- * BEFORE applying the language; the next startup consumes it and restores the
- * session without asking for the PIN again.
+ * NOTE: the UI is locked to Hebrew (service-center request), so logging in no
+ * longer applies the user's language — see src/i18n/index.ts. The stored
+ * per-user language stays in the data model, dormant.
  */
-function applyUserLanguage(user: User): void {
-  if (directionWillFlip(user.language)) {
-    stashAutoLogin(user.id);
-  }
-  setAppLanguage(user.language); // may restart the app (RTL <-> LTR)
-}
 
 /** Consume the post-restart auto-login marker, restoring the session. */
 function restoreAfterRestart(auth: AuthService): User | null {
@@ -115,7 +105,6 @@ export function createAuthStore(auth: AuthService): AuthStore {
         pin: input.pin,
       });
       auth.login(user.id, input.pin); // set the live session
-      applyUserLanguage(user);
       set({ status: 'authenticated', current: user, users: auth.users(), error: null });
       return true;
     },
@@ -126,7 +115,6 @@ export function createAuthStore(auth: AuthService): AuthStore {
         set({ error: 'auth.wrongPin' });
         return false;
       }
-      applyUserLanguage(user);
       set({ status: 'authenticated', current: user, error: null });
       return true;
     },

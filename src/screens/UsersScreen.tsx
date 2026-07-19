@@ -34,9 +34,7 @@ export function UsersScreen({ navigation }: Props): React.JSX.Element {
                 {u.firstName} {u.lastName}
               </Text>
               <Text style={styles.meta}>
-                {(u.role === 'admin' ? t('auth.roleAdmin') : t('auth.roleMechanic')) +
-                  ' · ' +
-                  t(`languages.${u.language}`)}
+                {u.role === 'admin' ? t('auth.roleAdmin') : t('auth.roleMechanic')}
               </Text>
             </Pressable>
           ))

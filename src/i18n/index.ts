@@ -11,10 +11,16 @@ import { en } from './locales/en';
 import { ru } from './locales/ru';
 import { he } from './locales/he';
 import { ar } from './locales/ar';
-import { getStoredLanguage, storeLanguage, type AppLanguage } from './languageStore';
+import { storeLanguage, type AppLanguage } from './languageStore';
 import { applyDirection } from './rtl';
 
-const initialLanguage = getStoredLanguage() ?? 'en';
+/**
+ * Per service-center request the UI is LOCKED to Hebrew: no language picker,
+ * per-user language is ignored. The other translations (en/ru/ar) stay in the
+ * codebase dormant — re-enabling the choice is a one-line change here.
+ */
+const LOCKED_LANGUAGE: AppLanguage = 'he';
+const initialLanguage = LOCKED_LANGUAGE;
 
 i18n.use(initReactI18next).init({
   resources: {

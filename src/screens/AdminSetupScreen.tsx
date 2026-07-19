@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore, useAuthActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { LanguagePicker } from '../components/LanguagePicker';
-import type { AppLanguage } from '../i18n';
 
 /**
  * First-launch screen (status 'no-users'): create the administrator account.
@@ -19,12 +17,12 @@ export function AdminSetupScreen(): React.JSX.Element {
   const actions = useAuthActions();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [language, setLanguage] = useState<AppLanguage>('en');
   const [pin, setPin] = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
 
   const submit = (): void => {
-    actions.createFirstAdmin({ firstName, lastName, language, pin, pinConfirm });
+    // UI is locked to Hebrew (service-center request): no language choice.
+    actions.createFirstAdmin({ firstName, lastName, language: 'he', pin, pinConfirm });
   };
 
   return (
@@ -51,9 +49,6 @@ export function AdminSetupScreen(): React.JSX.Element {
           value={lastName}
           onChangeText={setLastName}
         />
-
-        <Text style={styles.label}>{t('settings.language')}</Text>
-        <LanguagePicker value={language} onChange={setLanguage} />
 
         <Text style={styles.label}>{t('auth.pin')}</Text>
         <TextInput

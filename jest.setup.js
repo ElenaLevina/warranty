@@ -83,5 +83,6 @@ jest.mock('@bam.tech/react-native-image-resizer', () => ({
 // react-native-restart — no native restart in tests.
 jest.mock('react-native-restart', () => ({ __esModule: true, default: { restart: jest.fn() } }));
 
-// Initialize i18n for component tests (defaults to English under the MMKV mock).
-require('./src/i18n');
+// Initialize i18n for component tests. Production locks the UI to Hebrew;
+// tests assert against English strings, so switch the test instance to en.
+require('./src/i18n').default.changeLanguage('en');

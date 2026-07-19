@@ -11,9 +11,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useServices, useAuthStore, useAuthActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { LanguagePicker } from '../components/LanguagePicker';
 import { isValidPin, type UserRole } from '../services/users/userService';
-import type { AppLanguage } from '../i18n';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserEdit'>;
 
@@ -27,7 +25,8 @@ export function UserEditScreen({ navigation, route }: Props): React.JSX.Element 
   const [firstName, setFirstName] = useState(existing?.firstName ?? '');
   const [lastName, setLastName] = useState(existing?.lastName ?? '');
   const [role, setRole] = useState<UserRole>(existing?.role ?? 'mechanic');
-  const [language, setLanguage] = useState<AppLanguage>(existing?.language ?? 'en');
+  // UI is locked to Hebrew: the stored per-user language stays dormant.
+  const language = existing?.language ?? 'he';
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -104,9 +103,6 @@ export function UserEditScreen({ navigation, route }: Props): React.JSX.Element 
             );
           })}
         </View>
-
-        <Text style={styles.label}>{t('settings.language')}</Text>
-        <LanguagePicker value={language} onChange={setLanguage} />
 
         <Text style={styles.label}>{t('auth.pin')}</Text>
         <TextInput

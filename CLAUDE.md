@@ -131,7 +131,7 @@ Android-приложение для механика, которое докум�
 ## 10. Конвенции разработки
 
 - **Все комментарии в коде И сообщения коммитов — на английском языке.** (ASCII English only in code comments, JSDoc, docstrings, and git commit subjects/bodies.)
-- **UI-тексты — через i18n** (`src/i18n`, i18next + react-i18next): языки `en/ru/he/ar`, исходные ключи и default — английский. Не хардкодить строки в экранах/компонентах — добавлять ключ в `src/i18n/locales/*` и использовать `t('...')` (или `i18n.t` вне React). Иврит/арабский — RTL: направление применяется через `src/i18n/rtl.ts` (`I18nManager` + перезапуск `react-native-restart` при смене направления). В стилях использовать `start/end`, а не `left/right`.
+- **UI-тексты — через i18n** (`src/i18n`, i18next + react-i18next). **Интерфейс ЗАФИКСИРОВАН на иврите** (просьба сервис-центра): `LOCKED_LANGUAGE='he'` в `src/i18n/index.ts`, выбора языка в UI нет, поле `language` у пользователей — спящее. Переводы `en/ru/ar` остаются в коде (тесты работают на `en`); вернуть выбор — одна правка в `index.ts`. Не хардкодить строки — добавлять ключ в `src/i18n/locales/*` (ключи и default — английские) и использовать `t('...')`. RTL всегда включён (`rtl.ts`); в стилях использовать `start/end`, а не `left/right`.
 - Язык кода: TypeScript (strict), функциональные компоненты + хуки.
 - Навигация: `@react-navigation` (stack), 4 экрана из раздела 3.
 - Структура: `src/screens`, `src/components`, `src/services` (camera, ocr, files, upload, auth), `src/store`, `src/types`.
