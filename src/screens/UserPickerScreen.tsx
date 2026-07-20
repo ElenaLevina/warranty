@@ -54,9 +54,6 @@ export function UserPickerScreen(): React.JSX.Element {
                 <Text style={[styles.rowName, active && styles.rowNameActive]}>
                   {u.firstName} {u.lastName}
                 </Text>
-                <Text style={[styles.badge, active && styles.badgeActive]}>
-                  {u.role === 'admin' ? t('auth.roleAdmin') : t('auth.roleMechanic')}
-                </Text>
               </Pressable>
             );
           })}
@@ -103,9 +100,6 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, color: '#444', fontWeight: '700', marginTop: 10 },
   list: { gap: 10 },
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -115,8 +109,6 @@ const styles = StyleSheet.create({
   rowActive: { borderColor: '#1565c0', backgroundColor: '#e8f0fe' },
   rowName: { fontSize: 17, fontWeight: '700', color: '#222' },
   rowNameActive: { color: '#0d47a1' },
-  badge: { fontSize: 12, color: '#777', textTransform: 'uppercase' },
-  badgeActive: { color: '#1565c0' },
   pinBlock: { marginTop: 28 },
   pinLabel: { fontSize: 15, color: '#222', fontWeight: '700', marginBottom: 10, textAlign: 'center' },
   input: {
