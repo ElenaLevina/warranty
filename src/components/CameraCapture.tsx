@@ -231,7 +231,9 @@ export function CameraCapture({
       )}
 
       {allowModeSwitch && !recording && (
-        <View style={styles.modeToggle}>
+        // Anchored ABOVE the shutter (76px tall at insets.bottom+24) with a gap,
+        // so the two never overlap regardless of the navigation-bar inset.
+        <View style={[styles.modeToggle, { bottom: insets.bottom + 24 + 76 + 18 }]}>
           <Pressable
             testID="mode-photo"
             onPress={() => setCurrentMode('photo')}
@@ -334,7 +336,6 @@ const styles = StyleSheet.create({
   counterText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   modeToggle: {
     position: 'absolute',
-    bottom: 130,
     alignSelf: 'center',
     flexDirection: 'row',
     backgroundColor: 'rgba(0,0,0,0.5)',

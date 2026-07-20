@@ -258,6 +258,13 @@ export function createSessionStore(services: AppServices): SessionStore {
           // (enqueueUpload alone is idempotent and would keep 'uploaded').
           index.updateUploadStatus(`${active.case_id}/${fileName}`, 'pending');
           await preview.invalidate(active.case_id, fileName);
+          // Pre-warm the regenerated thumbnail BEFORE the grid re-renders:
+          // otherwise the tile's <Image> hits the just-deleted file and shows
+          // a blank square (same path, so it never retries).
+          const entry = meta.files.find(f => f.name === fileName);
+          if (entry !== undefined) {
+            await preview.getPreview(meta.case_id, entry).catch(() => undefined);
+          }
           set({ active: meta, uploads: { ...get().uploads, [fileName]: 'pending' } });
         });
       },

@@ -42,7 +42,6 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const files = active.files;
   const photoCount = files.filter(f => f.type === 'photo').length;
   const videoCount = files.filter(f => f.type === 'video').length;
-  const recent = files.slice(-9);
   const orderType = active.order_type;
 
   const typeLabel = (v: OrderType): string =>
@@ -100,7 +99,8 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.flex}>
-        <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+        {/* Fixed compact header: plate, order, counter never scroll away. */}
+        <View style={styles.header}>
           <Text style={styles.plate}>{active.plate_number}</Text>
           {active.order_number !== undefined && (
             <Text testID="order-number" style={styles.order}>
@@ -110,9 +110,12 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           <Text testID="file-counter" style={styles.counter}>
             {t('session.counter', { count: files.length, photos: photoCount, videos: videoCount })}
           </Text>
+        </View>
 
+        {/* Only the media grid scrolls. */}
+        <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
           <View style={styles.grid}>
-            {recent.map(f => (
+            {files.map(f => (
               <MediaTile
                 key={f.name}
                 caseId={active.case_id}
@@ -127,7 +130,10 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
               />
             ))}
           </View>
+        </ScrollView>
 
+        {/* Fixed bottom bar: capture buttons + card type + finish. */}
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
           <View style={styles.captureRow}>
             <View style={styles.flex}>
               <PrimaryButton testID="take-photo" title={t('session.photo')} onPress={onPhoto} loading={phase === 'busy'} />
@@ -137,9 +143,6 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
               <PrimaryButton testID="record-video" title={t('session.video')} variant="secondary" onPress={onVideo} />
             </View>
           </View>
-        </ScrollView>
-
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
           {/* Card type (סוג כרטיס): mandatory before finishing. */}
           <Text style={styles.label}>{t('session.orderType')}</Text>
           <Pressable
@@ -187,14 +190,15 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   flex: { flex: 1 },
-  content: { padding: 20 },
+  header: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 },
+  content: { paddingHorizontal: 20, paddingBottom: 12 },
   emptyWrap: { flex: 1, justifyContent: 'center', padding: 24 },
   empty: { textAlign: 'center', marginBottom: 24, color: '#444', fontSize: 18, fontWeight: '700' },
-  plate: { fontSize: 32, fontWeight: '900', color: '#222', textAlign: 'center' },
-  order: { fontSize: 15, fontWeight: '700', color: '#1565c0', textAlign: 'center', marginTop: 4 },
-  counter: { fontSize: 14, color: '#777', textAlign: 'center', marginTop: 6, marginBottom: 16 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  captureRow: { flexDirection: 'row', marginBottom: 4 },
+  plate: { fontSize: 28, fontWeight: '900', color: '#222', textAlign: 'center' },
+  order: { fontSize: 15, fontWeight: '700', color: '#1565c0', textAlign: 'center', marginTop: 2 },
+  counter: { fontSize: 13, color: '#777', textAlign: 'center', marginTop: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  captureRow: { flexDirection: 'row', marginBottom: 10 },
   gap: { width: 12 },
   bottomBar: {
     paddingHorizontal: 20,
