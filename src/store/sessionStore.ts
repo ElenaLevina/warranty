@@ -145,8 +145,11 @@ export function createSessionStore(services: AppServices): SessionStore {
           // Remove any leftover decrypted preview temp files (no-op for passthrough).
           await crypto.clearDecryptedCache?.();
           await refreshOpenSessions(set);
-          await upload.processQueue();
         });
+        // Retry the upload queue in the BACKGROUND — never block the Start
+        // screen. If the receiver is unreachable each item times out (bounded
+        // in the transport) and stays queued for the next attempt.
+        void upload.processQueue().catch(() => undefined);
       },
 
       async recognizePlate(imagePath: string) {
