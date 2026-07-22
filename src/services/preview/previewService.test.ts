@@ -84,6 +84,21 @@ describe('CachedPreviewService', () => {
     expect(await fs.exists(b!)).toBe(true);
   });
 
+  it('warm() builds the thumbnail from a plaintext path without decrypting', async () => {
+    const { fs, svc, calls } = await harness();
+    await fs.writeFile('/tmp/fresh.jpg', 'CAMERA_JPEG');
+    await svc.warm('case1', photoEntry('photo_002.jpg'), '/tmp/fresh.jpg');
+
+    // Thumbnail cached under the entry name; a later getPreview serves it from
+    // cache without generating again.
+    const thumb = `${CACHE}/case1__photo_002.jpg.thumb.jpg`;
+    expect(await fs.exists(thumb)).toBe(true);
+    expect(await fs.readFile(thumb)).toBe('thumb-of:/tmp/fresh.jpg');
+    calls.photo = 0;
+    expect(await svc.getPreview('case1', photoEntry('photo_002.jpg'))).toBe(thumb);
+    expect(calls.photo).toBe(0);
+  });
+
   it('getReadable/releaseReadable round-trips (passthrough keeps the path)', async () => {
     const { svc } = await harness();
     const readable = await svc.getReadable('case1', 'photo_001.jpg');

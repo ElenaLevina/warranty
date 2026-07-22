@@ -32,6 +32,13 @@ export interface PreviewService {
   releaseReadable(caseId: string, fileName: string, readablePath: string): Promise<void>;
   /** Drop a single cached thumbnail (after the photo was redrawn/replaced). */
   invalidate(caseId: string, fileName: string): Promise<void>;
+  /**
+   * Generate a thumbnail directly from an already-readable (plaintext) file —
+   * the fresh camera capture, BEFORE it is encrypted. Called at capture time so
+   * the grid shows cached thumbnails instantly (no decrypt, no on-view work).
+   * Best-effort: failures are swallowed (getPreview regenerates on demand).
+   */
+  warm(caseId: string, entry: CaseFileEntry, readablePath: string): Promise<void>;
   /** Remove all cached thumbnails of a case (called when the case closes). */
   clearCase(caseId: string): Promise<void>;
 }
@@ -97,6 +104,23 @@ export class CachedPreviewService implements PreviewService {
       }
     }
     return (await this.fs.exists(thumb)) ? thumb : null;
+  }
+
+  async warm(caseId: string, entry: CaseFileEntry, readablePath: string): Promise<void> {
+    if (this.thumbnailer === null) {
+      return;
+    }
+    try {
+      await this.fs.mkdir(this.cacheDir).catch(() => undefined);
+      const thumb = this.thumbPath(caseId, entry.name);
+      if (entry.type === 'video') {
+        await this.thumbnailer.videoThumb(readablePath, thumb);
+      } else {
+        await this.thumbnailer.photoThumb(readablePath, thumb);
+      }
+    } catch {
+      // best-effort: getPreview will regenerate from the sealed file later
+    }
   }
 
   async getReadable(caseId: string, fileName: string): Promise<string> {

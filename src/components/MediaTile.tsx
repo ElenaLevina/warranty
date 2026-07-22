@@ -39,7 +39,10 @@ export function MediaTile({ caseId, entry, onPress, version = 0 }: Props): React
     return () => {
       alive = false;
     };
-  }, [preview, caseId, entry, version]);
+    // Depend on stable identity fields, not the entry object (new ref each
+    // render) — otherwise the thumbnail is re-requested on every parent update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preview, caseId, entry.name, entry.type, entry.timestamp, version]);
 
   return (
     <Pressable

@@ -190,6 +190,10 @@ export function createSessionStore(services: AppServices): SessionStore {
             deviceId: device.getDeviceId(),
             plateImageTmpPath,
           });
+          const plateEntry = meta.files.find(f => f.name === 'plate.jpg');
+          if (plateEntry !== undefined) {
+            await preview.warm(meta.case_id, plateEntry, plateImageTmpPath);
+          }
           set({ active: meta, uploads: uploadsFromMeta(meta, {}) });
           await enqueueLatest(meta.case_id, meta.plate_number, 'plate.jpg');
           notify.emit({ kind: 'caseOpened', plate: meta.plate_number });
@@ -211,6 +215,9 @@ export function createSessionStore(services: AppServices): SessionStore {
         }
         await run(async () => {
           const entry = await files.addPhoto(active.case_id, tmpPath);
+          // Build the thumbnail NOW from the plaintext capture (no decrypt) so
+          // the grid shows it instantly instead of generating on view.
+          await preview.warm(active.case_id, entry, tmpPath);
           await reloadActive(active.case_id);
           await enqueueLatest(active.case_id, active.plate_number, entry.name);
         });
@@ -223,6 +230,7 @@ export function createSessionStore(services: AppServices): SessionStore {
         }
         await run(async () => {
           const entry = await files.addVideo(active.case_id, tmpPath, durationSec);
+          await preview.warm(active.case_id, entry, tmpPath);
           await reloadActive(active.case_id);
           await enqueueLatest(active.case_id, active.plate_number, entry.name);
         });
@@ -260,13 +268,11 @@ export function createSessionStore(services: AppServices): SessionStore {
           // The modified photo must be re-uploaded: reset its queue status
           // (enqueueUpload alone is idempotent and would keep 'uploaded').
           index.updateUploadStatus(`${active.case_id}/${fileName}`, 'pending');
-          await preview.invalidate(active.case_id, fileName);
-          // Pre-warm the regenerated thumbnail BEFORE the grid re-renders:
-          // otherwise the tile's <Image> hits the just-deleted file and shows
-          // a blank square (same path, so it never retries).
+          // Regenerate the thumbnail from the marked-up plaintext file (fast, no
+          // decrypt) BEFORE the grid re-renders, so it never shows a blank tile.
           const entry = meta.files.find(f => f.name === fileName);
           if (entry !== undefined) {
-            await preview.getPreview(meta.case_id, entry).catch(() => undefined);
+            await preview.warm(meta.case_id, entry, tmpPath);
           }
           set({ active: meta, uploads: { ...get().uploads, [fileName]: 'pending' } });
         });
