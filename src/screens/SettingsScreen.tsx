@@ -48,9 +48,13 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
         signal: ctrl.signal,
       });
       clearTimeout(timer);
-      setDetail(`HTTP ${res.status} · ${s.baseUrl}`);
+      // raw=length of the field as typed (reveals a hidden char: clean URL is 26);
+      // clean=length after ASCII sanitization.
+      setDetail(`HTTP ${res.status} · raw${baseUrl.length}/clean${s.baseUrl.length} · ${s.baseUrl}`);
     } catch (e) {
-      setDetail(`${e instanceof Error ? e.message : String(e)} · ${s.baseUrl}`);
+      setDetail(
+        `${e instanceof Error ? e.message : String(e)} · raw${baseUrl.length}/clean${s.baseUrl.length} · ${s.baseUrl}`,
+      );
     }
   };
 

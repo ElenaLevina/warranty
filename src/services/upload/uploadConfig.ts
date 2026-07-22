@@ -36,11 +36,12 @@ const KEY = 'upload.settings';
  * fetch/RNFS can't reach the server — the connection test just spins.
  */
 function sanitizeConfigValue(v: string): string {
-  // Strip whitespace (incl. nbsp) and zero-width / bidi direction marks that an
-  // RTL keyboard can silently inject (LRM/RLM, embeddings/overrides, isolates,
-  // BOM). Otherwise a value that LOOKS like the URL carries an invisible char
-  // and fetch/RNFS can't reach the server.
-  return v.replace(/[\s\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+  // Keep ONLY printable ASCII (0x21-0x7E): drops spaces and EVERY non-ASCII
+  // char — invisible RTL/bidi marks a Hebrew/Arabic keyboard may inject
+  // (LRM/RLM, ALM U+061C, isolates, ZWSP, BOM, nbsp, ...). URLs/tokens here
+  // are ASCII, so this is safe and bulletproof.
+  // eslint-disable-next-line no-control-regex
+  return v.replace(/[^\u0021-\u007E]/g, '');
 }
 
 export class MmkvUploadConfig implements UploadConfig {
