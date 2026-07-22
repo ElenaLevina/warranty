@@ -19,6 +19,7 @@ export const ru: Translation = {
     files: '{{count}} файлов',
     settings: 'Настройки',
     logout: 'Выйти',
+    pendingUploads: '⚠ {{count}} файлов ждут отправки на ПК — нажмите для повтора',
   },
   plate: {
     title: 'Номер авто',

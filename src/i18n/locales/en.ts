@@ -18,6 +18,7 @@ export const en = {
     files: '{{count}} files',
     settings: 'Settings',
     logout: 'Log out',
+    pendingUploads: '⚠ {{count}} files waiting to be sent to the PC — tap to retry',
   },
   plate: {
     title: 'Plate number',

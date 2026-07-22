@@ -20,6 +20,7 @@ export const ar: Translation = {
     files: '{{count}} ملفات',
     settings: 'الإعدادات',
     logout: 'خروج',
+    pendingUploads: '⚠ {{count}} ملفات بانتظار الإرسال إلى الحاسوب — انقر لإعادة المحاولة',
   },
   plate: {
     title: 'رقم السيارة',

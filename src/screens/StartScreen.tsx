@@ -17,6 +17,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Start'>;
 export function StartScreen({ navigation }: Props): React.JSX.Element {
   const { t } = useTranslation();
   const openSessions = useSessionStore(s => s.openSessions);
+  const pendingUploads = useSessionStore(s => s.pendingUploads);
   const actions = useSessionActions();
   const mechanic = useAuthStore(s => s.current);
   const authActions = useAuthActions();
@@ -71,6 +72,16 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
         <Text style={styles.subtitle}>{t('start.subtitle')}</Text>
       </View>
 
+      {pendingUploads > 0 && (
+        <Pressable
+          testID="pending-uploads"
+          style={styles.pendingBanner}
+          // Tap to retry sending the queued files to the PC right away.
+          onPress={() => actions.processUploads().catch(() => undefined)}>
+          <Text style={styles.pendingText}>{t('start.pendingUploads', { count: pendingUploads })}</Text>
+        </Pressable>
+      )}
+
       <View style={styles.cta}>
         <PrimaryButton
           testID="start-inspection"
@@ -121,6 +132,16 @@ const styles = StyleSheet.create({
   logo: { fontSize: 34, fontWeight: '800', color: '#1565c0' },
   subtitle: { fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' },
   cta: { marginTop: 48 },
+  pendingBanner: {
+    marginTop: 24,
+    backgroundColor: '#fff3e0',
+    borderColor: '#ffb74d',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  pendingText: { color: '#e65100', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   openBlock: { marginTop: 36, flex: 1 },
   openTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12, color: '#333' },
   row: {

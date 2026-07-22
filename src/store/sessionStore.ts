@@ -26,6 +26,8 @@ export interface SessionState {
   active: SessionMeta | null;
   /** Статус загрузки по имени файла активной сессии. */
   uploads: Record<string, UploadStatus>;
+  /** Count of queued files not yet delivered to the PC (0 = all sent / nothing queued). */
+  pendingUploads: number;
   /** Raw text seen by OCR on the last recognize attempt (diagnostics). */
   lastOcrText: string;
 
@@ -135,6 +137,11 @@ export function createSessionStore(services: AppServices): SessionStore {
       }
     }
 
+    /** Recompute how many queued files still need to reach the PC. */
+    function refreshPending(): void {
+      set({ pendingUploads: index.getQueue().filter(i => i.status !== 'uploaded').length });
+    }
+
     /** Refresh the active case's upload badges from the queue index. */
     function syncUploads(): void {
       const active = get().active;
@@ -158,6 +165,7 @@ export function createSessionStore(services: AppServices): SessionStore {
       openSessions: [],
       active: null,
       uploads: {},
+      pendingUploads: 0,
       lastOcrText: '',
 
       async bootstrap() {
@@ -170,11 +178,16 @@ export function createSessionStore(services: AppServices): SessionStore {
             index.removePendingComplete(c.caseId);
           }
           await refreshOpenSessions(set);
+          refreshPending();
         });
         // Retry the upload queue in the BACKGROUND — never block the Start
         // screen. If the receiver is unreachable each item times out (bounded
-        // in the transport) and stays queued for the next attempt.
-        void upload.processQueue().catch(() => undefined);
+        // in the transport) and stays queued for the next attempt. Reflect the
+        // outcome in the pending counter so the Start badge stays accurate.
+        void upload
+          .processQueue()
+          .then(() => refreshPending())
+          .catch(() => undefined);
       },
 
       async recognizePlate(imagePath: string) {
@@ -361,11 +374,15 @@ export function createSessionStore(services: AppServices): SessionStore {
             // Enqueue the whole case now (nothing was queued while the session
             // was open, so the PC folder is created only at finish).
             await enqueueClosedCase(closed);
+            refreshPending(); // show "waiting to send" immediately
             // Upload the case MEDIA in the BACKGROUND — never block the UI/close.
             // Failures are retried by the queue (on reconnect / next start).
             // session.json is intentionally NOT sent: the PC operators don't want
             // it in the case folder. It stays on the phone as the source of truth.
-            void upload.processQueue().catch(() => undefined);
+            void upload
+              .processQueue()
+              .then(() => refreshPending())
+              .catch(() => undefined);
           });
         } finally {
           finishing = false;
@@ -387,12 +404,12 @@ export function createSessionStore(services: AppServices): SessionStore {
                 attempts: 0,
                 enqueuedAt: new Date().toISOString(),
               });
-              // Re-arm already-uploaded items so processQueue re-sends them
-              // (to the new device-suffixed folder).
+              // Re-arm already-uploaded items so processQueue re-sends them.
               index.updateUploadStatus(filePath, 'pending');
             }
           }
           await upload.processQueue();
+          refreshPending();
           // session.json is intentionally not sent to the PC (media only).
           return caseIds.length;
         });
@@ -418,6 +435,7 @@ export function createSessionStore(services: AppServices): SessionStore {
             index.updateUploadStatus(filePath, 'pending'); // re-arm if already uploaded
           }
           await upload.processQueue();
+          refreshPending();
           // session.json is intentionally not sent to the PC (media only).
         });
       },
@@ -426,6 +444,7 @@ export function createSessionStore(services: AppServices): SessionStore {
         await run(async () => {
           await upload.processQueue();
           syncUploads();
+          refreshPending();
         });
       },
 

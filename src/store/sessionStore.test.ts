@@ -152,6 +152,27 @@ describe('sessionStore — full lifecycle', () => {
     expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
   });
 
+  it('tracks pending uploads for the Start-screen badge', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    await store.getState().addPhoto('/tmp/shot.jpg');
+    // Nothing is queued while the session is open.
+    expect(store.getState().pendingUploads).toBe(0);
+
+    await store.getState().setOrderType('warranty');
+    await store.getState().finish();
+    // The stub upload never delivers -> both files stay "waiting to send".
+    expect(store.getState().pendingUploads).toBe(2);
+
+    // Simulate the PC receiving them; a retry recomputes the badge to 0.
+    for (const i of services.index.getQueue()) {
+      services.index.updateUploadStatus(i.filePath, 'uploaded');
+    }
+    await store.getState().processUploads();
+    expect(store.getState().pendingUploads).toBe(0);
+  });
+
   it('setDiagcode stores the field and finish enqueues diagcode.txt', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

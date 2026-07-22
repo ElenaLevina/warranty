@@ -20,6 +20,7 @@ export const he: Translation = {
     files: '{{count}} קבצים',
     settings: 'הגדרות',
     logout: 'יציאה',
+    pendingUploads: '⚠ {{count}} קבצים ממתינים לשליחה למחשב — הקש לניסיון חוזר',
   },
   plate: {
     title: 'מספר רכב',
