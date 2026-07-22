@@ -3,7 +3,18 @@
  * (the PC receiver). Edited by the employee responsible for forwarding data.
  */
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Switch, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Switch,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -88,7 +99,10 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{t('settings.uploadHeader')}</Text>
         <Text style={styles.note}>{t('settings.uploadNote')}</Text>
 
@@ -192,7 +206,8 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
         )}
 
         <Text style={styles.version}>v{APP_CONFIG.appVersion}</Text>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

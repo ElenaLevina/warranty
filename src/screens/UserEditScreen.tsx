@@ -4,7 +4,17 @@
  * PIN (required on create; on edit, blank keeps the current PIN).
  */
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Pressable, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Pressable,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -79,7 +89,10 @@ export function UserEditScreen({ navigation, route }: Props): React.JSX.Element 
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>{t('auth.firstName')}</Text>
         <TextInput testID="first-name-input" style={styles.input} value={firstName} onChangeText={setFirstName} />
 
@@ -132,7 +145,8 @@ export function UserEditScreen({ navigation, route }: Props): React.JSX.Element 
             <Text style={styles.deleteText}>{t('auth.deleteUser')}</Text>
           </Pressable>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
