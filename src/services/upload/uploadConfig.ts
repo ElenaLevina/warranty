@@ -28,6 +28,21 @@ export interface UploadConfig {
 
 const KEY = 'upload.settings';
 
+/**
+ * Strip anything that must never be in a URL/token but an RTL (Hebrew/Arabic)
+ * keyboard can silently insert: all whitespace (incl. nbsp), zero-width chars,
+ * and Unicode bidi/direction marks (LRM/RLM, embeddings, isolates). Without
+ * this, a value that LOOKS like "http://…:8080" carries an invisible mark and
+ * fetch/RNFS can't reach the server — the connection test just spins.
+ */
+function sanitizeConfigValue(v: string): string {
+  // Strip whitespace (incl. nbsp) and zero-width / bidi direction marks that an
+  // RTL keyboard can silently inject (LRM/RLM, embeddings/overrides, isolates,
+  // BOM). Otherwise a value that LOOKS like the URL carries an invisible char
+  // and fetch/RNFS can't reach the server.
+  return v.replace(/[\s\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+}
+
 export class MmkvUploadConfig implements UploadConfig {
   private readonly store: MMKV;
 
@@ -49,8 +64,10 @@ export class MmkvUploadConfig implements UploadConfig {
 
   set(patch: Partial<UploadSettings>): void {
     const next = { ...this.get(), ...patch };
-    // Normalize: strip a trailing slash from the base URL.
-    next.baseUrl = next.baseUrl.replace(/\/+$/, '');
+    // Remove invisible/whitespace chars (RTL keyboards inject them), then the
+    // trailing slash from the base URL.
+    next.baseUrl = sanitizeConfigValue(next.baseUrl).replace(/\/+$/, '');
+    next.token = sanitizeConfigValue(next.token);
     this.store.set(KEY, JSON.stringify(next));
   }
 }
