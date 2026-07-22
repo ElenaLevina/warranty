@@ -1,5 +1,16 @@
 import React, { useLayoutEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Modal, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Pressable,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -140,7 +151,11 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.flex}>
+      {/* Lift the fixed bottom bar above the keyboard so the diagcode input is
+          visible while typing (edge-to-edge neutralizes manifest adjustResize). */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Fixed compact header: plate, order, counter never scroll away. */}
         <View style={styles.header}>
           <Text style={styles.plate}>{active.plate_number}</Text>
@@ -226,7 +241,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
             loading={phase === 'busy'}
           />
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       <Modal visible={typePickerOpen} transparent animationType="fade" onRequestClose={() => setTypePickerOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setTypePickerOpen(false)}>
