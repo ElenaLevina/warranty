@@ -40,14 +40,17 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
           </Text>
         )}
         <View style={styles.topActions}>
+          {/* Users + Settings are admin-only; mechanics see just "Log out". */}
           {mechanic?.role === 'admin' && (
-            <Pressable testID="open-users" onPress={() => navigation.navigate('Users')} hitSlop={8}>
-              <Text style={styles.settings}>👥 {t('auth.manageUsers')}</Text>
-            </Pressable>
+            <>
+              <Pressable testID="open-users" onPress={() => navigation.navigate('Users')} hitSlop={8}>
+                <Text style={styles.settings}>👥 {t('auth.manageUsers')}</Text>
+              </Pressable>
+              <Pressable testID="open-settings" onPress={() => navigation.navigate('Settings')} hitSlop={8}>
+                <Text style={styles.settings}>⚙ {t('start.settings')}</Text>
+              </Pressable>
+            </>
           )}
-          <Pressable testID="open-settings" onPress={() => navigation.navigate('Settings')} hitSlop={8}>
-            <Text style={styles.settings}>⚙ {t('start.settings')}</Text>
-          </Pressable>
           <Pressable
             testID="lock-app"
             onPress={() => {
