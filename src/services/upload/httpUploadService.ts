@@ -27,24 +27,12 @@ export interface HttpUploadDeps {
   transport: UploadTransport;
   /** Root dir of case folders; queue filePath is relative to it (`caseId/name`). */
   casesRoot: string;
-  /**
-   * Short per-device tag appended to the case-folder name ON THE RECEIVER, e.g.
-   * `<caseId>__A3F9`. Keeps the local folder name clean but makes two phones
-   * documenting the SAME repair order land in SEPARATE PC folders (no overwrite).
-   */
-  deviceTag?: string;
   /** Optional hook so the UI can reflect live status changes. */
   onStatus?: (fileName: string, status: UploadStatus) => void;
 }
 
 export class HttpUploadService implements UploadService {
   constructor(private readonly deps: HttpUploadDeps) {}
-
-  /** Case-folder name used on the receiver (local caseId + device tag). */
-  private serverCaseId(caseId: string): string {
-    const tag = this.deps.deviceTag;
-    return tag !== undefined && tag.length > 0 ? `${caseId}__${tag}` : caseId;
-  }
 
   async enqueue(item: UploadQueueItem): Promise<void> {
     // Queue only — NO per-file upload. Files are sent in the background on
@@ -85,7 +73,7 @@ export class HttpUploadService implements UploadService {
       await transport.complete({
         baseUrl: s.baseUrl,
         token: s.token,
-        caseId: this.serverCaseId(caseId),
+        caseId,
         sessionJson,
       });
       index.removePendingComplete(caseId);
@@ -125,7 +113,7 @@ export class HttpUploadService implements UploadService {
       await transport.uploadFile({
         baseUrl: s.baseUrl,
         token: s.token,
-        caseId: this.serverCaseId(deriveCaseId(item.filePath)),
+        caseId: deriveCaseId(item.filePath),
         filePath: readablePath,
         fileName: item.fileName,
         type,
