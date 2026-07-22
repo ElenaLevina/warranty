@@ -135,6 +135,30 @@ describe('HttpUploadService', () => {
   });
 });
 
+describe('HttpUploadService device tag (no cross-phone overwrite)', () => {
+  it('suffixes the receiver caseId with the device tag for files and complete', async () => {
+    const idx = new MmkvStorageIndex();
+    idx.clear();
+    const fs = new InMemoryFileSystem();
+    const transport = new FakeTransport();
+    const svc = new HttpUploadService({
+      config: fakeConfig(ENABLED),
+      index: idx,
+      crypto: new PassthroughCryptoService(fs),
+      fs,
+      transport,
+      casesRoot: '/data/cases',
+      deviceTag: 'A3F9',
+    });
+    await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
+    await svc.processQueue();
+    expect(transport.uploads[0]?.caseId).toBe('caseX__A3F9');
+
+    await svc.completeCase('caseX', '{}');
+    expect(transport.completes[0]?.caseId).toBe('caseX__A3F9');
+  });
+});
+
 describe('HttpUploadService session.json retry (field-testing bug)', () => {
   it('keeps session.json pending when the PC is unreachable and retries it in processQueue', async () => {
     const { svc, idx, transport } = harness(ENABLED);

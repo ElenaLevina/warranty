@@ -95,6 +95,11 @@ export const en = {
     serverOk: '✓ Server reachable',
     serverFail: '✗ No connection or wrong token',
     save: 'Save',
+    resendTitle: 'Recovery',
+    resend: 'Re-send all cases to the PC',
+    resendNote: 'Uploads every case stored on this phone again (into per-device folders). Use to recover files overwritten on the PC.',
+    resendDone: 'Re-sent {{count}} cases',
+    resendFail: 'Re-send failed',
   },
   auth: {
     registerTitle: 'Mechanic registration',

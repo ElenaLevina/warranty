@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { useServices } from '../store/StoreProvider';
+import { useServices, useSessionActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { APP_CONFIG } from '../config';
 
@@ -18,6 +18,7 @@ type CheckState = 'idle' | 'checking' | 'ok' | 'fail';
 export function SettingsScreen({ navigation }: Props): React.JSX.Element {
   const { t } = useTranslation();
   const { uploadConfig, upload } = useServices();
+  const sessionActions = useSessionActions();
   const initial = uploadConfig.get();
   const [enabled, setEnabled] = useState(initial.enabled);
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl);
@@ -25,6 +26,22 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
   const [check, setCheck] = useState<CheckState>('idle');
   /** Diagnostic detail of the last test (actual HTTP status / error). */
   const [detail, setDetail] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
+
+  const resendAll = async (): Promise<void> => {
+    uploadConfig.set({ enabled, baseUrl, token }); // ensure the receiver config is applied
+    setResending(true);
+    setResendMsg('');
+    try {
+      const n = await sessionActions.resendAllCases();
+      setResendMsg(t('settings.resendDone', { count: n }));
+    } catch {
+      setResendMsg(t('settings.resendFail'));
+    } finally {
+      setResending(false);
+    }
+  };
 
   const save = (): void => {
     uploadConfig.set({ enabled, baseUrl, token });
@@ -114,6 +131,17 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
           <PrimaryButton testID="upload-save" title={t('settings.save')} onPress={save} />
         </View>
 
+        <Text style={[styles.title, styles.uploadTitle]}>{t('settings.resendTitle')}</Text>
+        <Text style={styles.note}>{t('settings.resendNote')}</Text>
+        <PrimaryButton
+          testID="resend-all"
+          title={t('settings.resend')}
+          variant="secondary"
+          loading={resending}
+          onPress={resendAll}
+        />
+        {resendMsg.length > 0 && <Text style={styles.ok}>{resendMsg}</Text>}
+
         <Text style={styles.version}>v{APP_CONFIG.appVersion}</Text>
       </ScrollView>
     </SafeAreaView>
@@ -124,6 +152,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 20 },
   title: { fontSize: 22, fontWeight: '800', color: '#222' },
+  uploadTitle: { marginTop: 28 },
   note: { fontSize: 13, color: '#777', marginTop: 6, marginBottom: 16 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 12 },
   label: { fontSize: 15, fontWeight: '700', color: '#333', marginTop: 14, marginBottom: 6 },

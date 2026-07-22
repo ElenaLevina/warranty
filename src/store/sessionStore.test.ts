@@ -152,6 +152,25 @@ describe('sessionStore — full lifecycle', () => {
     expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
   });
 
+  it('resendAllCases re-queues every file of every case on disk', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    // Two cases; the first is finished (its files marked 'uploaded').
+    const a = await store.getState().startCase('11-111-11', '/tmp/plate.jpg', '113100');
+    await store.getState().addPhoto('/tmp/shot.jpg');
+    services.index.updateUploadStatus(`${a}/plate.jpg`, 'uploaded');
+    services.index.updateUploadStatus(`${a}/photo_001.jpg`, 'uploaded');
+    store.getState().leaveActive();
+    await services.fs.writeFile('/tmp/plateB.jpg', 'IMGB');
+    const b = await store.getState().startCase('22-222-22', '/tmp/plateB.jpg', '113200');
+
+    const n = await store.getState().resendAllCases();
+    expect(n).toBe(2);
+    // Every file of every case is back in the queue (statuses re-armed).
+    const paths = services.index.getQueue().map(q => q.filePath).sort();
+    expect(paths).toEqual([`${a}/photo_001.jpg`, `${a}/plate.jpg`, `${b}/plate.jpg`].sort());
+  });
+
   it('keeps a session saved on leave and lets you switch and resume it', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

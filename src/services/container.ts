@@ -32,6 +32,12 @@ import type { OcrResult } from '../types';
  *  - crypto: KeystoreCryptoService (Фаза 7)
  * Если не переданы — используется mock-OCR и passthrough-crypto (срез/эмулятор).
  */
+/** Short ASCII device tag for the receiver folder suffix (last 6 hex, uppercase). */
+function shortDeviceTag(deviceId: string): string {
+  const hex = deviceId.replace(/[^a-zA-Z0-9]/g, '');
+  return hex.slice(-6).toUpperCase();
+}
+
 export interface NativeOverrides {
   ocr?: OcrService;
   crypto?: CryptoService;
@@ -74,7 +80,9 @@ export function createRealServices(opts: RealServicesOptions): AppServices {
   const files = new FilesService(fs, crypto, opts.casesRoot);
   const index = new MmkvStorageIndex(opts.indexEncryptionKey);
   const uploadConfig = new MmkvUploadConfig(opts.indexEncryptionKey);
+  const device = new MmkvDeviceService(opts.indexEncryptionKey);
   // Real LAN upload to the PC receiver; no-ops until configured/enabled in Settings.
+  // deviceTag suffixes the PC folder name so two phones never overwrite each other.
   const upload = new HttpUploadService({
     config: uploadConfig,
     index,
@@ -82,12 +90,12 @@ export function createRealServices(opts: RealServicesOptions): AppServices {
     fs,
     transport: new RnfsHttpTransport(),
     casesRoot: opts.casesRoot,
+    deviceTag: shortDeviceTag(device.getDeviceId()),
   });
   const notify = new StubNotifyService(opts.notifySink);
   const ocr = opts.native?.ocr ?? new MockOcrService(opts.ocrScript);
   const camera = new DevCameraService(fs, opts.tmpDir);
   const auth = createMmkvAuthService(opts.indexEncryptionKey);
-  const device = new MmkvDeviceService(opts.indexEncryptionKey);
   const preview = new CachedPreviewService(
     fs,
     crypto,

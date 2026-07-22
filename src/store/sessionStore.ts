@@ -45,6 +45,8 @@ export interface SessionState {
   finish(): Promise<void>;
   /** Retry the upload queue (called on network regained). */
   processUploads(): Promise<void>;
+  /** Re-send EVERY case on this phone to the PC (recovery). Returns case count. */
+  resendAllCases(): Promise<number>;
   leaveActive(): void;
 }
 
@@ -322,6 +324,36 @@ export function createSessionStore(services: AppServices): SessionStore {
         } finally {
           finishing = false;
         }
+      },
+
+      async resendAllCases() {
+        return run(async () => {
+          const caseIds = await files.listAllCaseIds();
+          for (const caseId of caseIds) {
+            const meta = await files.readSession(caseId);
+            for (const f of meta.files) {
+              const filePath = `${caseId}/${f.name}`;
+              await upload.enqueue({
+                filePath,
+                plateNumber: meta.plate_number,
+                fileName: f.name,
+                status: 'pending',
+                attempts: 0,
+                enqueuedAt: new Date().toISOString(),
+              });
+              // Re-arm already-uploaded items so processQueue re-sends them
+              // (to the new device-suffixed folder).
+              index.updateUploadStatus(filePath, 'pending');
+            }
+          }
+          await upload.processQueue();
+          // (Re)send session.json for every case too.
+          for (const caseId of caseIds) {
+            const meta = await files.readSession(caseId);
+            await upload.completeCase(caseId, JSON.stringify(meta)).catch(() => undefined);
+          }
+          return caseIds.length;
+        });
       },
 
       async processUploads() {

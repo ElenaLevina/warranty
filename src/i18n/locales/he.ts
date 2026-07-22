@@ -97,6 +97,11 @@ export const he: Translation = {
     serverOk: '✓ השרת זמין',
     serverFail: '✗ אין חיבור או אסימון שגוי',
     save: 'שמור',
+    resendTitle: 'שחזור',
+    resend: 'שלח מחדש את כל הבדיקות למחשב',
+    resendNote: 'מעלה מחדש את כל הבדיקות שבטלפון (לתיקיות לפי מכשיר). לשחזור קבצים שנדרסו במחשב.',
+    resendDone: 'נשלחו מחדש {{count}} בדיקות',
+    resendFail: 'השליחה מחדש נכשלה',
   },
   auth: {
     registerTitle: 'רישום מכונאי',

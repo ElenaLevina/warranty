@@ -278,6 +278,21 @@ export class FilesService {
     return meta;
   }
 
+  /** All case folder ids on disk (open + closed) that have a session.json. */
+  async listAllCaseIds(): Promise<string[]> {
+    if (!(await this.fs.exists(this.casesRoot))) {
+      return [];
+    }
+    const dirs = await this.fs.readDir(this.casesRoot);
+    const ids: string[] = [];
+    for (const d of dirs) {
+      if (d.isDirectory && (await this.fs.exists(`${d.path}/session.json`))) {
+        ids.push(d.name);
+      }
+    }
+    return ids;
+  }
+
   /**
    * List open sessions. When `mechanicId` is provided, only sessions belonging
    * to that mechanic are returned (per-mechanic isolation, CLAUDE.md §8): a new
