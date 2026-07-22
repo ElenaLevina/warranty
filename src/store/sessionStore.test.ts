@@ -162,6 +162,9 @@ describe('sessionStore — full lifecycle', () => {
 
     await store.getState().setOrderType('warranty');
     await store.getState().finish();
+    // The badge updates only AFTER the background send attempt concludes (so a
+    // successful send never flashes it). Let that microtask run.
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
     // The stub upload never delivers -> both files stay "waiting to send".
     expect(store.getState().pendingUploads).toBe(2);
 

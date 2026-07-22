@@ -374,11 +374,13 @@ export function createSessionStore(services: AppServices): SessionStore {
             // Enqueue the whole case now (nothing was queued while the session
             // was open, so the PC folder is created only at finish).
             await enqueueClosedCase(closed);
-            refreshPending(); // show "waiting to send" immediately
             // Upload the case MEDIA in the BACKGROUND — never block the UI/close.
             // Failures are retried by the queue (on reconnect / next start).
             // session.json is intentionally NOT sent: the PC operators don't want
             // it in the case folder. It stays on the phone as the source of truth.
+            // NOTE: the pending counter is refreshed ONLY after the send attempt
+            // finishes — so a successful send never flashes the "waiting" banner
+            // and the mechanic is not alarmed during the normal upload window.
             void upload
               .processQueue()
               .then(() => refreshPending())
