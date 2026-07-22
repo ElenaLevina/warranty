@@ -153,6 +153,11 @@ export function createSessionStore(services: AppServices): SessionStore {
         await run(async () => {
           // Remove any leftover decrypted preview temp files (no-op for passthrough).
           await crypto.clearDecryptedCache?.();
+          // Drop any session.json completion queued by an older build — the PC
+          // no longer receives session.json, so it must never be flushed.
+          for (const c of index.getPendingCompletes()) {
+            index.removePendingComplete(c.caseId);
+          }
           await refreshOpenSessions(set);
         });
         // Retry the upload queue in the BACKGROUND — never block the Start
@@ -336,14 +341,11 @@ export function createSessionStore(services: AppServices): SessionStore {
             await refreshOpenSessions(set);
             // Thumbnails of a closed case are no longer needed (READ ONLY).
             await preview.clearCase(closed.case_id).catch(() => undefined);
-            // Upload the whole case in the BACKGROUND — never block the UI/close.
+            // Upload the case MEDIA in the BACKGROUND — never block the UI/close.
             // Failures are retried by the queue (on reconnect / next start).
-            void (async () => {
-              await upload.processQueue().catch(() => undefined);
-              await upload
-                .completeCase(closed.case_id, JSON.stringify(closed))
-                .catch(() => undefined);
-            })();
+            // session.json is intentionally NOT sent: the PC operators don't want
+            // it in the case folder. It stays on the phone as the source of truth.
+            void upload.processQueue().catch(() => undefined);
           });
         } finally {
           finishing = false;
@@ -371,11 +373,7 @@ export function createSessionStore(services: AppServices): SessionStore {
             }
           }
           await upload.processQueue();
-          // (Re)send session.json for every case too.
-          for (const caseId of caseIds) {
-            const meta = await files.readSession(caseId);
-            await upload.completeCase(caseId, JSON.stringify(meta)).catch(() => undefined);
-          }
+          // session.json is intentionally not sent to the PC (media only).
           return caseIds.length;
         });
       },
@@ -400,7 +398,7 @@ export function createSessionStore(services: AppServices): SessionStore {
             index.updateUploadStatus(filePath, 'pending'); // re-arm if already uploaded
           }
           await upload.processQueue();
-          await upload.completeCase(caseId, JSON.stringify(meta)).catch(() => undefined);
+          // session.json is intentionally not sent to the PC (media only).
         });
       },
 
