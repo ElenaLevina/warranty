@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +23,25 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const phase = useSessionStore(s => s.phase);
   const insets = useSafeAreaInsets();
   const [typePickerOpen, setTypePickerOpen] = useState(false);
+
+  // "To start" header button: save the session (it stays open on disk) and go
+  // back to Start, where the mechanic can begin a new inspection or resume any
+  // open one. Nothing is lost — every photo already wrote session.json.
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable
+          testID="session-to-start"
+          hitSlop={12}
+          onPress={() => {
+            actions.leaveActive();
+            navigation.reset({ index: 0, routes: [{ name: 'Start' }] });
+          }}>
+          <Text style={styles.headerBtn}>{t('session.toStart')}</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, actions, t]);
 
   if (active === null) {
     return (
@@ -194,6 +213,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: 12 },
   emptyWrap: { flex: 1, justifyContent: 'center', padding: 24 },
   empty: { textAlign: 'center', marginBottom: 24, color: '#444', fontSize: 18, fontWeight: '700' },
+  headerBtn: { color: '#1565c0', fontSize: 16, fontWeight: '700', paddingHorizontal: 4 },
   plate: { fontSize: 28, fontWeight: '900', color: '#222', textAlign: 'center' },
   order: { fontSize: 15, fontWeight: '700', color: '#1565c0', textAlign: 'center', marginTop: 2 },
   counter: { fontSize: 13, color: '#777', textAlign: 'center', marginTop: 4 },

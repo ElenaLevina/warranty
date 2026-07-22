@@ -304,6 +304,7 @@ export class FilesService {
         result.push({
           case_id: meta.case_id,
           plate_number: meta.plate_number,
+          ...(meta.order_number !== undefined ? { order_number: meta.order_number } : {}),
           session_start: meta.session_start,
           file_count: meta.files.length,
         });

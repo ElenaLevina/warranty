@@ -56,6 +56,8 @@ export interface OpenSessionSummary {
   /** Идентификатор кейса (имя папки) — по нему возобновляют сессию. */
   case_id: string;
   plate_number: string;
+  /** 6-digit repair-order number, shown in the unfinished-sessions list. */
+  order_number?: string;
   session_start: string;
   file_count: number;
 }

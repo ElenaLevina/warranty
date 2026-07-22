@@ -152,6 +152,32 @@ describe('sessionStore — full lifecycle', () => {
     expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
   });
 
+  it('keeps a session saved on leave and lets you switch and resume it', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+
+    // Session A for one car: scan + a photo, then leave WITHOUT finishing.
+    const caseA = await store.getState().startCase('11-111-11', '/tmp/plate.jpg', '113100');
+    await store.getState().addPhoto('/tmp/shot.jpg');
+    store.getState().leaveActive();
+    expect(store.getState().active).toBeNull();
+
+    // A second car meanwhile.
+    await services.fs.writeFile('/tmp/plateB.jpg', 'IMGB');
+    const caseB = await store.getState().startCase('22-222-22', '/tmp/plateB.jpg', '113200');
+    expect(caseB).not.toBe(caseA);
+
+    // Both show up as open sessions with their order numbers.
+    await store.getState().bootstrap();
+    const open = store.getState().openSessions;
+    expect(open.map(o => o.order_number).sort()).toEqual(['113100', '113200']);
+
+    // Resume A: its earlier photo is still there.
+    await store.getState().resume(caseA);
+    expect(store.getState().active?.case_id).toBe(caseA);
+    expect(store.getState().active?.files.map(f => f.name)).toEqual(['plate.jpg', 'photo_001.jpg']);
+  });
+
   it('renames the folder and repoints the upload queue on finish', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

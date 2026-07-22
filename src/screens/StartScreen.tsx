@@ -89,6 +89,9 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
                 style={styles.row}
                 onPress={() => resume(item.case_id)}>
                 <Text style={styles.rowPlate}>{item.plate_number}</Text>
+                {item.order_number !== undefined && (
+                  <Text style={styles.rowOrder}>{t('order.orderLabel', { n: item.order_number })}</Text>
+                )}
                 <Text style={styles.rowMeta}>
                   {new Date(item.session_start).toLocaleString()} ·{' '}
                   {t('start.files', { count: item.file_count })}
@@ -125,5 +128,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   rowPlate: { fontSize: 20, fontWeight: '700', color: '#222' },
+  rowOrder: { fontSize: 14, fontWeight: '700', color: '#1565c0', marginTop: 2 },
   rowMeta: { fontSize: 13, color: '#777', marginTop: 4 },
 });
