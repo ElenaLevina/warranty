@@ -152,6 +152,25 @@ describe('sessionStore — full lifecycle', () => {
     expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
   });
 
+  it('queues nothing while the session is open; enqueues the whole case at finish', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    const openId = await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    await store.getState().addPhoto('/tmp/shot.jpg');
+
+    // Open session: NOTHING is queued, so the PC folder is never created before
+    // finish (even if the app restarts and flushes the queue in the background).
+    expect(services.index.getQueue()).toHaveLength(0);
+
+    await store.getState().setOrderType('warranty');
+    await store.getState().finish();
+
+    // Finish enqueues every file under the FINAL (…_w) case id.
+    const q = services.index.getQueue();
+    expect(q.map(i => i.fileName).sort()).toEqual(['photo_001.jpg', 'plate.jpg']);
+    expect(q.every(i => i.filePath.startsWith(`${openId}_w/`))).toBe(true);
+  });
+
   it('deleteFile removes a photo from the active case and its upload queue', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
@@ -180,13 +199,23 @@ describe('sessionStore — full lifecycle', () => {
     await seedTmp(services);
     const a = await store.getState().startCase('11-111-11', '/tmp/plate.jpg', '113100');
     await store.getState().addPhoto('/tmp/shot.jpg');
-    // Mark A uploaded, then leave and make a second case B.
-    services.index.updateUploadStatus(`${a}/plate.jpg`, 'uploaded');
-    services.index.updateUploadStatus(`${a}/photo_001.jpg`, 'uploaded');
     store.getState().leaveActive();
     await services.fs.writeFile('/tmp/plateB.jpg', 'IMGB');
     const b = await store.getState().startCase('22-222-22', '/tmp/plateB.jpg', '113200');
-    services.index.updateUploadStatus(`${b}/plate.jpg`, 'uploaded');
+    store.getState().leaveActive();
+
+    // Files are queued only at finish; simulate two ALREADY-UPLOADED cases by
+    // seeding the queue directly (open sessions never enqueue anything).
+    for (const fp of [`${a}/plate.jpg`, `${a}/photo_001.jpg`, `${b}/plate.jpg`]) {
+      services.index.enqueueUpload({
+        filePath: fp,
+        plateNumber: 'x',
+        fileName: fp.slice(fp.indexOf('/') + 1),
+        status: 'uploaded',
+        attempts: 0,
+        enqueuedAt: '2026-05-25T09:14:00.000Z',
+      });
+    }
 
     // listResendCases returns both.
     const list = await store.getState().listResendCases();

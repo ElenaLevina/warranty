@@ -109,19 +109,23 @@ export function createSessionStore(services: AppServices): SessionStore {
       set({ active: meta, uploads: uploadsFromMeta(meta, get().uploads) });
     }
 
-    async function enqueueLatest(caseId: string, plateNumber: string, fileName: string): Promise<void> {
-      const filePath = `${caseId}/${fileName}`;
-      await upload.enqueue({
-        filePath,
-        plateNumber,
-        fileName,
-        status: 'pending',
-        attempts: 0,
-        enqueuedAt: new Date().toISOString(),
-      });
-      // Reflect the real status after the upload attempt (uploaded/error/pending).
-      const status = index.getQueue().find(q => q.filePath === filePath)?.status ?? 'pending';
-      set({ uploads: { ...get().uploads, [fileName]: status } });
+    /**
+     * Enqueue EVERY file of a (just-closed) case for upload. Nothing is queued
+     * while the session is open, so the PC folder is created only at finish —
+     * an open/abandoned session never reaches the PC (service-center request).
+     */
+    async function enqueueClosedCase(meta: SessionMeta): Promise<void> {
+      for (const f of meta.files) {
+        // eslint-disable-next-line no-await-in-loop
+        await upload.enqueue({
+          filePath: `${meta.case_id}/${f.name}`,
+          plateNumber: meta.plate_number,
+          fileName: f.name,
+          status: 'pending',
+          attempts: 0,
+          enqueuedAt: new Date().toISOString(),
+        });
+      }
     }
 
     /** Refresh the active case's upload badges from the queue index. */
@@ -209,7 +213,6 @@ export function createSessionStore(services: AppServices): SessionStore {
             await preview.warm(meta.case_id, plateEntry, plateImageTmpPath);
           }
           set({ active: meta, uploads: uploadsFromMeta(meta, {}) });
-          await enqueueLatest(meta.case_id, meta.plate_number, 'plate.jpg');
           notify.emit({ kind: 'caseOpened', plate: meta.plate_number });
           await refreshOpenSessions(set);
           return meta.case_id;
@@ -233,7 +236,6 @@ export function createSessionStore(services: AppServices): SessionStore {
           // the grid shows it instantly instead of generating on view.
           await preview.warm(active.case_id, entry, tmpPath);
           await reloadActive(active.case_id);
-          await enqueueLatest(active.case_id, active.plate_number, entry.name);
         });
       },
 
@@ -246,7 +248,6 @@ export function createSessionStore(services: AppServices): SessionStore {
           const entry = await files.addVideo(active.case_id, tmpPath, durationSec);
           await preview.warm(active.case_id, entry, tmpPath);
           await reloadActive(active.case_id);
-          await enqueueLatest(active.case_id, active.plate_number, entry.name);
         });
       },
 
@@ -279,9 +280,8 @@ export function createSessionStore(services: AppServices): SessionStore {
         }
         await run(async () => {
           const meta = await files.replacePhoto(active.case_id, fileName, tmpPath);
-          // The modified photo must be re-uploaded: reset its queue status
-          // (enqueueUpload alone is idempotent and would keep 'uploaded').
-          index.updateUploadStatus(`${active.case_id}/${fileName}`, 'pending');
+          // No queue re-arm needed: nothing is uploaded during an open session;
+          // the whole case is enqueued at finish (including this marked-up photo).
           // Regenerate the thumbnail from the marked-up plaintext file (fast, no
           // decrypt) BEFORE the grid re-renders, so it never shows a blank tile.
           const entry = meta.files.find(f => f.name === fileName);
@@ -326,10 +326,9 @@ export function createSessionStore(services: AppServices): SessionStore {
           await run(async () => {
             const openId = active.case_id;
             const closed = await files.closeCase(openId);
-            // The folder was renamed (…_w/_r): repoint the upload queue and drop
-            // stale thumbnails so files/session.json reach the PC under the final name.
+            // The folder may have been renamed (…_w/_r); drop stale thumbnails
+            // of the old id. Files are enqueued below under the FINAL case id.
             if (closed.case_id !== openId) {
-              index.renameCasePrefix(openId, closed.case_id);
               await preview.clearCase(openId).catch(() => undefined);
             }
             notify.emit({
@@ -341,6 +340,9 @@ export function createSessionStore(services: AppServices): SessionStore {
             await refreshOpenSessions(set);
             // Thumbnails of a closed case are no longer needed (READ ONLY).
             await preview.clearCase(closed.case_id).catch(() => undefined);
+            // Enqueue the whole case now (nothing was queued while the session
+            // was open, so the PC folder is created only at finish).
+            await enqueueClosedCase(closed);
             // Upload the case MEDIA in the BACKGROUND — never block the UI/close.
             // Failures are retried by the queue (on reconnect / next start).
             // session.json is intentionally NOT sent: the PC operators don't want
