@@ -16,7 +16,9 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  AppState,
 } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import {
   Camera,
   useCameraDevice,
@@ -72,6 +74,19 @@ export function CameraCapture({
   const { hasPermission, requestPermission } = useCameraPermission();
   const mic = useMicrophonePermission();
   const camera = useRef<Camera>(null);
+
+  // Keep the camera session tied to real visibility. When the screen turns off
+  // (or the app backgrounds), Android tears down the camera; if isActive stayed
+  // hard-coded true, vision-camera would not rebuild the preview surface on
+  // resume and the user saw a black screen (only fixed by toggling video/photo).
+  // Driving isActive from AppState + navigation focus rebuilds it automatically.
+  const isFocused = useIsFocused();
+  const [foreground, setForeground] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', s => setForeground(s === 'active'));
+    return () => sub.remove();
+  }, []);
+  const cameraActive = isFocused && foreground;
 
   const [currentMode, setCurrentMode] = useState<CaptureMode>(mode);
   const [busy, setBusy] = useState(false);
@@ -235,7 +250,7 @@ export function CameraCapture({
         style={StyleSheet.absoluteFill}
         device={device}
         format={format}
-        isActive={true}
+        isActive={cameraActive}
         photo={currentMode === 'photo'}
         video={currentMode === 'video'}
         audio={currentMode === 'video'}
