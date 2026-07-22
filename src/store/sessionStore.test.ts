@@ -152,6 +152,27 @@ describe('sessionStore — full lifecycle', () => {
     expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
   });
 
+  it('setDiagcode stores the field and finish enqueues diagcode.txt', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    await store.getState().setDiagcode('REC-9');
+    expect(store.getState().active?.diagcode).toBe('REC-9');
+
+    await store.getState().setOrderType('warranty');
+    await store.getState().finish();
+    expect(services.index.getQueue().map(i => i.fileName)).toContain('diagcode.txt');
+  });
+
+  it('finish does not enqueue diagcode.txt when the field is empty', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    await store.getState().setOrderType('warranty');
+    await store.getState().finish();
+    expect(services.index.getQueue().map(i => i.fileName)).not.toContain('diagcode.txt');
+  });
+
   it('queues nothing while the session is open; enqueues the whole case at finish', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

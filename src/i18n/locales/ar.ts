@@ -72,6 +72,8 @@ export const ar: Translation = {
     finish: 'إنهاء',
     finishTitle: 'إنهاء الجلسة؟',
     orderType: 'نوع البطاقة',
+    diagcode: 'دياكود',
+    diagcodePlaceholder: '—',
     orderTypePlaceholder: '— اختر —',
     orderTypeWarranty: 'אחריות (ضمان)',
     orderTypeRecall: 'ריקול (استدعاء)',

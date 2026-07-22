@@ -48,6 +48,12 @@ export interface SessionMeta {
   files: CaseFileEntry[];
   /** Описание повреждений, вводит механик. */
   description: string;
+  /**
+   * Optional free-text "diagcode" (דיאקוד) recommendation entered by the
+   * mechanic. Materialized as a plain-text diagcode.txt in the case folder at
+   * finish (only when non-empty) and uploaded to the PC alongside the media.
+   */
+  diagcode?: string;
   status: SessionStatus;
 }
 

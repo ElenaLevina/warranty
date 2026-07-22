@@ -71,6 +71,8 @@ export const ru: Translation = {
     finish: 'ЗАКОНЧИЛ',
     finishTitle: 'Завершить сессию?',
     orderType: 'Вид заявки',
+    diagcode: 'Диакод',
+    diagcodePlaceholder: '—',
     orderTypePlaceholder: '— выберите —',
     orderTypeWarranty: 'אחריות (гарантия)',
     orderTypeRecall: 'ריקול (отзыв)',

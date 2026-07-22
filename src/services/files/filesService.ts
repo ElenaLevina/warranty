@@ -246,6 +246,26 @@ export class FilesService {
     await this.writeSession(caseId, meta);
   }
 
+  /** Set the optional diagcode (דיאקוד) text. Materialized as a file at finish. */
+  async setDiagcode(caseId: string, diagcode: string): Promise<SessionMeta> {
+    const meta = await this.assertOpen(caseId, 'setDiagcode');
+    meta.diagcode = diagcode;
+    await this.writeSession(caseId, meta);
+    return meta;
+  }
+
+  /**
+   * Seal a UTF-8 string into `<dir>/<name>` using the SAME file-encryption path
+   * as media (write plaintext temp -> sealFile -> drop temp), so the upload
+   * pipeline (crypto.openFile) can decrypt it to plaintext for the PC.
+   */
+  private async sealText(dir: string, name: string, text: string): Promise<void> {
+    const tmp = `${dir}/.${name}.src`;
+    await this.fs.writeFile(tmp, text);
+    await this.crypto.sealFile(tmp, `${dir}/${name}`);
+    await this.fs.unlink(tmp).catch(() => undefined);
+  }
+
   /** Set the card type (סוג כרטיס). Folder is renamed later, at closeCase. */
   async setOrderType(caseId: string, orderType: OrderType): Promise<SessionMeta> {
     const meta = await this.assertOpen(caseId, 'setOrderType');
@@ -287,8 +307,15 @@ export class FilesService {
     const finalId = meta.case_id;
     await this.writeSession(finalId, meta);
 
-    // Defense-in-depth: drop the write bit on the case files (no-op on some FS).
+    // Materialize the optional diagcode (דיאקוד) as a plain-text artifact for
+    // the PC — only when non-empty. Sealed at rest like media; the upload
+    // pipeline decrypts it to plaintext (diagcode.txt) on the receiver.
     const dir = this.caseDir(finalId);
+    if (meta.diagcode !== undefined && meta.diagcode.trim().length > 0) {
+      await this.sealText(dir, 'diagcode.txt', meta.diagcode.trim());
+    }
+
+    // Defense-in-depth: drop the write bit on the case files (no-op on some FS).
     const entries = await this.fs.readDir(dir);
     for (const e of entries) {
       if (e.isFile) {

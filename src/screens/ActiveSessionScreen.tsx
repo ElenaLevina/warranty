@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Modal, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -23,6 +23,8 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const phase = useSessionStore(s => s.phase);
   const insets = useSafeAreaInsets();
   const [typePickerOpen, setTypePickerOpen] = useState(false);
+  // Local buffer for the optional diagcode (דיאקוד); persisted on blur/finish.
+  const [diag, setDiag] = useState(active?.diagcode ?? '');
 
   // "To start" header button: save the session (it stays open on disk) and go
   // back to Start, where the mechanic can begin a new inspection or resume any
@@ -119,6 +121,8 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           const p = photoCount;
           const v = videoCount;
           try {
+            // Persist the diagcode buffer in case the input never blurred.
+            await actions.setDiagcode(diag);
             await actions.finish();
             navigation.replace('SessionComplete', {
               plate,
@@ -182,17 +186,35 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
               <PrimaryButton testID="record-video" title={t('session.video')} variant="secondary" onPress={onVideo} />
             </View>
           </View>
-          {/* Card type (סוג כרטיס): mandatory before finishing. */}
-          <Text style={styles.label}>{t('session.orderType')}</Text>
-          <Pressable
-            testID="order-type-select"
-            style={styles.select}
-            onPress={() => setTypePickerOpen(true)}>
-            <Text style={orderType === undefined ? styles.selectPlaceholder : styles.selectValue}>
-              {orderType === undefined ? t('session.orderTypePlaceholder') : typeLabel(orderType)}
-            </Text>
-            <Text style={styles.selectChevron}>▾</Text>
-          </Pressable>
+          {/* Same row: card type (סוג כרטיס, mandatory) + diagcode (דיאקוד, optional). */}
+          <View style={styles.formRow}>
+            <View style={styles.formCol}>
+              <Text style={styles.label}>{t('session.orderType')}</Text>
+              <Pressable
+                testID="order-type-select"
+                style={styles.select}
+                onPress={() => setTypePickerOpen(true)}>
+                <Text style={orderType === undefined ? styles.selectPlaceholder : styles.selectValue}>
+                  {orderType === undefined ? t('session.orderTypePlaceholder') : typeLabel(orderType)}
+                </Text>
+                <Text style={styles.selectChevron}>▾</Text>
+              </Pressable>
+            </View>
+            <View style={styles.formCol}>
+              <Text style={styles.label}>{t('session.diagcode')}</Text>
+              <TextInput
+                testID="diagcode-input"
+                style={styles.diagInput}
+                value={diag}
+                onChangeText={setDiag}
+                onEndEditing={() => actions.setDiagcode(diag).catch(() => undefined)}
+                placeholder={t('session.diagcodePlaceholder')}
+                placeholderTextColor="#9aa5ad"
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
 
           <View style={styles.finishGap} />
           <PrimaryButton
@@ -248,6 +270,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   label: { fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 6 },
+  formRow: { flexDirection: 'row', gap: 12 },
+  formCol: { flex: 1 },
+  diagInput: {
+    borderWidth: 1,
+    borderColor: '#cfd8dc',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#222',
+    backgroundColor: '#fff',
+  },
   select: {
     flexDirection: 'row',
     alignItems: 'center',

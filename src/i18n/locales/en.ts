@@ -70,6 +70,8 @@ export const en = {
     finish: 'FINISH',
     finishTitle: 'Finish the session?',
     orderType: 'Card type',
+    diagcode: 'Diagcode',
+    diagcodePlaceholder: '—',
     orderTypePlaceholder: '— select —',
     orderTypeWarranty: 'אחריות (warranty)',
     orderTypeRecall: 'ריקול (recall)',

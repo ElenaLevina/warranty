@@ -39,6 +39,8 @@ export interface SessionState {
   addPhoto(tmpPath: string): Promise<void>;
   addVideo(tmpPath: string, durationSec: number): Promise<void>;
   setDescription(text: string): Promise<void>;
+  /** Set the optional diagcode (דיאקוד) text for the active case. */
+  setDiagcode(text: string): Promise<void>;
   /** Set the card type (סוג כרטיס) — required before finish; sets the folder letter. */
   setOrderType(orderType: OrderType): Promise<void>;
   /** Save a marked-up photo OVER the original (open session only). */
@@ -115,12 +117,17 @@ export function createSessionStore(services: AppServices): SessionStore {
      * an open/abandoned session never reaches the PC (service-center request).
      */
     async function enqueueClosedCase(meta: SessionMeta): Promise<void> {
-      for (const f of meta.files) {
+      const names = meta.files.map(f => f.name);
+      // closeCase materialized diagcode.txt only when the field was non-empty.
+      if (meta.diagcode !== undefined && meta.diagcode.trim().length > 0) {
+        names.push('diagcode.txt');
+      }
+      for (const name of names) {
         // eslint-disable-next-line no-await-in-loop
         await upload.enqueue({
-          filePath: `${meta.case_id}/${f.name}`,
+          filePath: `${meta.case_id}/${name}`,
           plateNumber: meta.plate_number,
-          fileName: f.name,
+          fileName: name,
           status: 'pending',
           attempts: 0,
           enqueuedAt: new Date().toISOString(),
@@ -259,6 +266,17 @@ export function createSessionStore(services: AppServices): SessionStore {
         await run(async () => {
           await files.setDescription(active.case_id, text);
           await reloadActive(active.case_id);
+        });
+      },
+
+      async setDiagcode(text: string) {
+        const active = get().active;
+        if (active === null) {
+          return;
+        }
+        await run(async () => {
+          const meta = await files.setDiagcode(active.case_id, text);
+          set({ active: meta });
         });
       },
 

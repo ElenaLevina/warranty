@@ -290,6 +290,39 @@ describe('FilesService.deleteFile', () => {
   });
 });
 
+describe('FilesService diagcode (דיאקוד)', () => {
+  it('materializes a trimmed diagcode.txt on close when the field is set', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.setDiagcode(meta.case_id, '  ABC-123  ');
+    await svc.setOrderType(meta.case_id, 'warranty');
+    const closed = await svc.closeCase(meta.case_id);
+
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/diagcode.txt`)).toBe(true);
+    expect(await fs.readFile(`${ROOT}/${closed.case_id}/diagcode.txt`)).toBe('ABC-123');
+    // Not a media file: never added to files[].
+    expect(closed.files.some(f => f.name === 'diagcode.txt')).toBe(false);
+  });
+
+  it('creates no diagcode.txt when the field is blank/empty', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.setDiagcode(meta.case_id, '   ');
+    await svc.setOrderType(meta.case_id, 'recall');
+    const closed = await svc.closeCase(meta.case_id);
+
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/diagcode.txt`)).toBe(false);
+  });
+
+  it('rejects setDiagcode on a closed case', async () => {
+    const { svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.setOrderType(meta.case_id, 'warranty');
+    const closed = await svc.closeCase(meta.case_id);
+    await expect(svc.setDiagcode(closed.case_id, 'X')).rejects.toBeInstanceOf(SessionClosedError);
+  });
+});
+
 describe('FilesService.setOrderType + folder rename on close', () => {
   it('renames the folder to <base>_w on close for a warranty card', async () => {
     const { fs, svc } = await setup();

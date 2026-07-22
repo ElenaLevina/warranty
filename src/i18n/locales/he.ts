@@ -72,6 +72,8 @@ export const he: Translation = {
     finish: 'סיים',
     finishTitle: 'לסיים את הבדיקה?',
     orderType: 'סוג כרטיס',
+    diagcode: 'דיאקוד',
+    diagcodePlaceholder: '—',
     orderTypePlaceholder: '— בחר —',
     orderTypeWarranty: 'אחריות',
     orderTypeRecall: 'ריקול',
