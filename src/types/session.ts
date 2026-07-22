@@ -51,6 +51,17 @@ export interface SessionMeta {
   status: SessionStatus;
 }
 
+/** Summary of any case (open or closed) — used by the recovery/re-send list. */
+export interface CaseListItem {
+  case_id: string;
+  plate_number: string;
+  order_number?: string;
+  order_type?: OrderType;
+  session_start: string;
+  file_count: number;
+  status: SessionStatus;
+}
+
 /** Краткая запись об открытой сессии для стартового экрана/индекса. */
 export interface OpenSessionSummary {
   /** Идентификатор кейса (имя папки) — по нему возобновляют сессию. */

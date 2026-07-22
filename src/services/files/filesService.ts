@@ -13,7 +13,7 @@
  *  - Numbering: plate.jpg is always the first photo; photo_NNN.jpg and
  *    video_NNN.mp4 have independent counters starting at 001.
  */
-import type { CaseFileEntry, OpenSessionSummary, OrderType, SessionMeta } from '../../types';
+import type { CaseFileEntry, CaseListItem, OpenSessionSummary, OrderType, SessionMeta } from '../../types';
 import type { FileSystem } from './fileSystem';
 import type { CryptoService } from '../crypto/cryptoService';
 import { APP_CONFIG } from '../../config';
@@ -276,6 +276,26 @@ export class FilesService {
       }
     }
     return meta;
+  }
+
+  /** Every case on disk (open + closed) with summary info, for the re-send list. */
+  async listAllCases(): Promise<CaseListItem[]> {
+    const ids = await this.listAllCaseIds();
+    const out: CaseListItem[] = [];
+    for (const id of ids) {
+      const m = await this.readSession(id);
+      out.push({
+        case_id: m.case_id,
+        plate_number: m.plate_number,
+        order_number: m.order_number,
+        order_type: m.order_type,
+        session_start: m.session_start,
+        file_count: m.files.length,
+        status: m.status,
+      });
+    }
+    // Newest first.
+    return out.sort((a, b) => b.session_start.localeCompare(a.session_start));
   }
 
   /** All case folder ids on disk (open + closed) that have a session.json. */

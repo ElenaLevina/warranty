@@ -8,6 +8,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppServices } from '../services/container';
 import type {
+  CaseListItem,
   OpenSessionSummary,
   OrderNumberResult,
   OrderType,
@@ -47,6 +48,10 @@ export interface SessionState {
   processUploads(): Promise<void>;
   /** Re-send EVERY case on this phone to the PC (recovery). Returns case count. */
   resendAllCases(): Promise<number>;
+  /** List every case on the phone (open+closed) for the recovery/re-send screen. */
+  listResendCases(): Promise<CaseListItem[]>;
+  /** Re-send ONE case to the PC (recovery of a single overwritten case). */
+  resendCase(caseId: string): Promise<void>;
   leaveActive(): void;
 }
 
@@ -353,6 +358,30 @@ export function createSessionStore(services: AppServices): SessionStore {
             await upload.completeCase(caseId, JSON.stringify(meta)).catch(() => undefined);
           }
           return caseIds.length;
+        });
+      },
+
+      async listResendCases() {
+        return run(async () => files.listAllCases());
+      },
+
+      async resendCase(caseId: string) {
+        await run(async () => {
+          const meta = await files.readSession(caseId);
+          for (const f of meta.files) {
+            const filePath = `${caseId}/${f.name}`;
+            await upload.enqueue({
+              filePath,
+              plateNumber: meta.plate_number,
+              fileName: f.name,
+              status: 'pending',
+              attempts: 0,
+              enqueuedAt: new Date().toISOString(),
+            });
+            index.updateUploadStatus(filePath, 'pending'); // re-arm if already uploaded
+          }
+          await upload.processQueue();
+          await upload.completeCase(caseId, JSON.stringify(meta)).catch(() => undefined);
         });
       },
 

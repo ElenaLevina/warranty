@@ -152,6 +152,30 @@ describe('sessionStore — full lifecycle', () => {
     expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
   });
 
+  it('resendCase re-queues only the selected case', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    const a = await store.getState().startCase('11-111-11', '/tmp/plate.jpg', '113100');
+    await store.getState().addPhoto('/tmp/shot.jpg');
+    // Mark A uploaded, then leave and make a second case B.
+    services.index.updateUploadStatus(`${a}/plate.jpg`, 'uploaded');
+    services.index.updateUploadStatus(`${a}/photo_001.jpg`, 'uploaded');
+    store.getState().leaveActive();
+    await services.fs.writeFile('/tmp/plateB.jpg', 'IMGB');
+    const b = await store.getState().startCase('22-222-22', '/tmp/plateB.jpg', '113200');
+    services.index.updateUploadStatus(`${b}/plate.jpg`, 'uploaded');
+
+    // listResendCases returns both.
+    const list = await store.getState().listResendCases();
+    expect(list.map(c => c.case_id).sort()).toEqual([a, b].sort());
+
+    // Re-send ONLY A: its files are re-armed (pending); B stays uploaded.
+    await store.getState().resendCase(a);
+    const q = services.index.getQueue();
+    expect(q.find(i => i.filePath === `${a}/photo_001.jpg`)?.status).not.toBe('uploaded');
+    expect(q.find(i => i.filePath === `${b}/plate.jpg`)?.status).toBe('uploaded');
+  });
+
   it('resendAllCases re-queues every file of every case on disk', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

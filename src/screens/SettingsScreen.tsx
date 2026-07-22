@@ -3,11 +3,12 @@
  * (the PC receiver). Edited by the employee responsible for forwarding data.
  */
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Switch, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Switch, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
+import type { CaseListItem } from '../types';
 import { useServices, useSessionActions } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { APP_CONFIG } from '../config';
@@ -26,20 +27,30 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
   const [check, setCheck] = useState<CheckState>('idle');
   /** Diagnostic detail of the last test (actual HTTP status / error). */
   const [detail, setDetail] = useState('');
-  const [resending, setResending] = useState(false);
-  const [resendMsg, setResendMsg] = useState('');
+  const [cases, setCases] = useState<CaseListItem[] | null>(null);
+  const [loadingCases, setLoadingCases] = useState(false);
+  /** Per-case send state: caseId -> 'sending' | 'done' | 'fail'. */
+  const [sendState, setSendState] = useState<Record<string, 'sending' | 'done' | 'fail'>>({});
 
-  const resendAll = async (): Promise<void> => {
-    uploadConfig.set({ enabled, baseUrl, token }); // ensure the receiver config is applied
-    setResending(true);
-    setResendMsg('');
+  const loadCases = async (): Promise<void> => {
+    setLoadingCases(true);
     try {
-      const n = await sessionActions.resendAllCases();
-      setResendMsg(t('settings.resendDone', { count: n }));
+      setCases(await sessionActions.listResendCases());
     } catch {
-      setResendMsg(t('settings.resendFail'));
+      setCases([]);
     } finally {
-      setResending(false);
+      setLoadingCases(false);
+    }
+  };
+
+  const sendCase = async (caseId: string): Promise<void> => {
+    uploadConfig.set({ enabled, baseUrl, token }); // ensure the receiver config is applied
+    setSendState(s => ({ ...s, [caseId]: 'sending' }));
+    try {
+      await sessionActions.resendCase(caseId);
+      setSendState(s => ({ ...s, [caseId]: 'done' }));
+    } catch {
+      setSendState(s => ({ ...s, [caseId]: 'fail' }));
     }
   };
 
@@ -133,14 +144,52 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
 
         <Text style={[styles.title, styles.uploadTitle]}>{t('settings.resendTitle')}</Text>
         <Text style={styles.note}>{t('settings.resendNote')}</Text>
-        <PrimaryButton
-          testID="resend-all"
-          title={t('settings.resend')}
-          variant="secondary"
-          loading={resending}
-          onPress={resendAll}
-        />
-        {resendMsg.length > 0 && <Text style={styles.ok}>{resendMsg}</Text>}
+
+        {cases === null ? (
+          <PrimaryButton
+            testID="resend-load"
+            title={t('settings.resendLoad')}
+            variant="secondary"
+            loading={loadingCases}
+            onPress={loadCases}
+          />
+        ) : cases.length === 0 ? (
+          <Text style={styles.note}>{t('settings.resendNone')}</Text>
+        ) : (
+          cases.map(c => {
+            const st = sendState[c.case_id];
+            return (
+              <View key={c.case_id} testID={`resend-row-${c.case_id}`} style={styles.caseRow}>
+                <View style={styles.caseInfo}>
+                  <Text style={styles.casePlate}>{c.plate_number}</Text>
+                  <Text style={styles.caseMeta}>
+                    {(c.order_number !== undefined ? `№${c.order_number} · ` : '') +
+                      new Date(c.session_start).toLocaleDateString() +
+                      ' · ' +
+                      t('start.files', { count: c.file_count })}
+                  </Text>
+                </View>
+                {st === 'done' ? (
+                  <Text style={styles.caseDone}>✓</Text>
+                ) : (
+                  <Pressable
+                    testID={`resend-send-${c.case_id}`}
+                    style={styles.caseSend}
+                    disabled={st === 'sending'}
+                    onPress={() => sendCase(c.case_id)}>
+                    {st === 'sending' ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.caseSendText}>
+                        {st === 'fail' ? t('settings.resendFail') : t('settings.resendOne')}
+                      </Text>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            );
+          })
+        )}
 
         <Text style={styles.version}>v{APP_CONFIG.appVersion}</Text>
       </ScrollView>
@@ -169,6 +218,27 @@ const styles = StyleSheet.create({
   ok: { color: '#2e7d32', fontSize: 14, marginTop: 10, textAlign: 'center' },
   fail: { color: '#c62828', fontSize: 14, marginTop: 10, textAlign: 'center' },
   detail: { color: '#607d8b', fontSize: 12, marginTop: 8, textAlign: 'center' },
+  caseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eceff1',
+  },
+  caseInfo: { flex: 1, paddingEnd: 12 },
+  casePlate: { fontSize: 16, fontWeight: '700', color: '#222' },
+  caseMeta: { fontSize: 13, color: '#777', marginTop: 2 },
+  caseSend: {
+    minWidth: 96,
+    alignItems: 'center',
+    backgroundColor: '#1565c0',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  caseSendText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  caseDone: { color: '#2e7d32', fontSize: 22, fontWeight: '900', minWidth: 96, textAlign: 'center' },
   version: { color: '#b0bec5', fontSize: 12, textAlign: 'center', marginTop: 24 },
   save: { marginTop: 28 },
 });
