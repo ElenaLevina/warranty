@@ -8,7 +8,7 @@
  *
  * НЕ рендерится в Node-тестах/эмуляторе (там dev-путь). Проверять на телефоне.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -52,6 +52,10 @@ function mmss(totalSec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/** Photo flash mode; cycled by the flash button (auto -> on -> off). */
+type FlashMode = 'auto' | 'on' | 'off';
+const FLASH_ORDER: FlashMode[] = ['auto', 'on', 'off'];
+
 export function CameraCapture({
   mode,
   showPlateFrame = false,
@@ -74,6 +78,30 @@ export function CameraCapture({
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // §6 capture controls: photo flash, video torch (LED lamp), and digital zoom.
+  const [flash, setFlash] = useState<FlashMode>('auto');
+  const [torch, setTorch] = useState(false);
+  const [zoom, setZoom] = useState(1);
+
+  // Zoom presets relative to the lens' neutral zoom, clamped to the device max
+  // (drops a preset that would exceed maxZoom, so we never offer an unusable step).
+  const zoomPresets = useMemo(() => {
+    if (device === undefined) {
+      return [] as { label: string; value: number }[];
+    }
+    const base = device.neutralZoom;
+    return [1, 2, 3]
+      .map(mult => ({ label: `${mult}×`, value: Math.min(base * mult, device.maxZoom) }))
+      .filter((p, i, arr) => i === 0 || p.value > arr[i - 1]!.value + 0.01);
+  }, [device]);
+
+  // Start at the lens' neutral zoom once the device is known.
+  useEffect(() => {
+    if (device !== undefined) {
+      setZoom(device.neutralZoom);
+    }
+  }, [device]);
 
   // Запросить разрешения при монтировании (микрофон — если видео возможно).
   useEffect(() => {
@@ -112,7 +140,7 @@ export function CameraCapture({
     }
     setBusy(true);
     try {
-      const photo = await camera.current.takePhoto({ flash: 'auto' });
+      const photo = await camera.current.takePhoto({ flash });
       onPhoto?.(photo.path);
     } catch (e) {
       Alert.alert(t('camera.shootErrorTitle'), e instanceof Error ? e.message : String(e));
@@ -165,6 +193,15 @@ export function CameraCapture({
     }, 1000);
   };
 
+  const cycleFlash = (): void => {
+    setFlash(prev => FLASH_ORDER[(FLASH_ORDER.indexOf(prev) + 1) % FLASH_ORDER.length]!);
+  };
+  const flashLabel: Record<FlashMode, string> = {
+    auto: t('camera.flashAuto'),
+    on: t('camera.flashOn'),
+    off: t('camera.flashOff'),
+  };
+
   if (device === undefined) {
     return (
       <View style={styles.fallback}>
@@ -202,6 +239,9 @@ export function CameraCapture({
         photo={currentMode === 'photo'}
         video={currentMode === 'video'}
         audio={currentMode === 'video'}
+        zoom={zoom}
+        // Torch (LED lamp) stays lit through the video recording when enabled.
+        torch={currentMode === 'video' && torch ? 'on' : 'off'}
       />
 
       {showPlateFrame && (
@@ -227,6 +267,42 @@ export function CameraCapture({
         <View style={styles.recBadge} pointerEvents="none">
           <Text style={styles.recDot}>●</Text>
           <Text style={styles.recTime}>{mmss(elapsed)}</Text>
+        </View>
+      )}
+
+      {/* Top-end controls: flash (photo) / torch (video). */}
+      <View style={[styles.topEnd, { top: insets.top + 12 }]}>
+        {currentMode === 'photo' && device.hasFlash && (
+          <Pressable testID="flash-toggle" onPress={cycleFlash} style={styles.roundBtn}>
+            <Text style={styles.roundIcon}>{flash === 'off' ? '🚫' : '⚡'}</Text>
+            <Text style={styles.roundLabel}>{flashLabel[flash]}</Text>
+          </Pressable>
+        )}
+        {currentMode === 'video' && device.hasTorch && (
+          <Pressable
+            testID="torch-toggle"
+            onPress={() => setTorch(v => !v)}
+            style={[styles.roundBtn, torch && styles.roundBtnOn]}>
+            <Text style={styles.roundIcon}>🔦</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Zoom presets (1×/2×/3×, clamped to the device). */}
+      {zoomPresets.length > 1 && (
+        <View style={[styles.zoomBar, { bottom: insets.bottom + 24 + 76 + 18 + (allowModeSwitch ? 60 : 0) }]}>
+          {zoomPresets.map(p => {
+            const active = Math.abs(zoom - p.value) < 0.01;
+            return (
+              <Pressable
+                key={p.label}
+                testID={`zoom-${p.label}`}
+                onPress={() => setZoom(p.value)}
+                style={[styles.zoomBtn, active && styles.zoomBtnActive]}>
+                <Text style={[styles.zoomText, active && styles.zoomTextActive]}>{p.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       )}
 
@@ -334,6 +410,36 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   counterText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  topEnd: {
+    position: 'absolute',
+    end: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  roundBtn: {
+    minWidth: 52,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 26,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+  },
+  roundBtnOn: { backgroundColor: '#f9a825' },
+  roundIcon: { fontSize: 20 },
+  roundLabel: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  zoomBar: {
+    position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 22,
+    padding: 4,
+    gap: 4,
+  },
+  zoomBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16 },
+  zoomBtnActive: { backgroundColor: '#fff' },
+  zoomText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  zoomTextActive: { color: '#111' },
   modeToggle: {
     position: 'absolute',
     alignSelf: 'center',
