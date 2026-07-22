@@ -42,6 +42,9 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   // open one. Nothing is lost — every photo already wrote session.json.
   useLayoutEffect(() => {
     navigation.setOptions({
+      // Hide the screen title ("בדיקה"): next to the RTL "To Start" button it
+      // merged into one run. The plate/order below is the real heading anyway.
+      headerTitle: '',
       headerLeft: () => (
         <Pressable
           testID="session-to-start"
@@ -50,7 +53,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
             actions.leaveActive();
             navigation.reset({ index: 0, routes: [{ name: 'Start' }] });
           }}>
-          <Text style={styles.headerBtn}>{t('session.toStart')}</Text>
+          <Text style={styles.headerBtn}>🏠 {t('session.toStart')}</Text>
         </Pressable>
       ),
     });
