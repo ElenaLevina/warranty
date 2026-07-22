@@ -3,6 +3,8 @@
  * фиксированное значение; в следующей итерации заменяется идентичностью из auth.
  */
 export const APP_CONFIG = {
+  /** App version shown in Settings (bump together with android versionName). */
+  appVersion: '1.1',
   /** Временный идентификатор механика до внедрения авторизации (Фаза auth). */
   mechanicId: 'user_042',
   /** Порог уверенности OCR для автосоздания кейса. */

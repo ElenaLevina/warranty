@@ -10,6 +10,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useServices } from '../store/StoreProvider';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { APP_CONFIG } from '../config';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type CheckState = 'idle' | 'checking' | 'ok' | 'fail';
@@ -22,6 +23,8 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl);
   const [token, setToken] = useState(initial.token);
   const [check, setCheck] = useState<CheckState>('idle');
+  /** Diagnostic detail of the last test (actual HTTP status / error). */
+  const [detail, setDetail] = useState('');
 
   const save = (): void => {
     uploadConfig.set({ enabled, baseUrl, token });
@@ -29,10 +32,26 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
   };
 
   const testConnection = async (): Promise<void> => {
-    uploadConfig.set({ enabled, baseUrl, token }); // checkConnection reads from config
+    uploadConfig.set({ enabled, baseUrl, token }); // sanitizes; checkConnection reads config
     setCheck('checking');
+    setDetail('');
     const ok = await upload.checkConnection();
     setCheck(ok ? 'ok' : 'fail');
+    // Diagnostic probe on the SANITIZED values, so we see the real reason
+    // (401 vs timeout vs bad address) — helps triage field connection issues.
+    const s = uploadConfig.get();
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const res = await fetch(`${s.baseUrl}/v1/health`, {
+        headers: { Authorization: `Bearer ${s.token}` },
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      setDetail(`HTTP ${res.status} · ${s.baseUrl}`);
+    } catch (e) {
+      setDetail(`${e instanceof Error ? e.message : String(e)} · ${s.baseUrl}`);
+    }
   };
 
   return (
@@ -80,11 +99,18 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
           />
           {check === 'ok' && <Text style={styles.ok}>{t('settings.serverOk')}</Text>}
           {check === 'fail' && <Text style={styles.fail}>{t('settings.serverFail')}</Text>}
+          {detail.length > 0 && (
+            <Text testID="conn-detail" style={styles.detail}>
+              {detail}
+            </Text>
+          )}
         </View>
 
         <View style={styles.save}>
           <PrimaryButton testID="upload-save" title={t('settings.save')} onPress={save} />
         </View>
+
+        <Text style={styles.version}>v{APP_CONFIG.appVersion}</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -109,5 +135,7 @@ const styles = StyleSheet.create({
   check: { marginTop: 24 },
   ok: { color: '#2e7d32', fontSize: 14, marginTop: 10, textAlign: 'center' },
   fail: { color: '#c62828', fontSize: 14, marginTop: 10, textAlign: 'center' },
+  detail: { color: '#607d8b', fontSize: 12, marginTop: 8, textAlign: 'center' },
+  version: { color: '#b0bec5', fontSize: 12, textAlign: 'center', marginTop: 24 },
   save: { marginTop: 28 },
 });
