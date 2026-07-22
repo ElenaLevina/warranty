@@ -78,6 +78,10 @@ export const ru: Translation = {
     finished: 'Сессия завершена',
     toStart: 'На старт',
     noActive: 'Нет активной сессии',
+    deleteTitle: 'Удалить файл?',
+    deleteMsg: 'Файл будет безвозвратно удалён из осмотра.',
+    deleteConfirm: 'Удалить',
+    plateProtected: 'Фото номерного знака удалить нельзя.',
   },
   complete: {
     title: 'Готово',
@@ -149,6 +153,7 @@ export const ru: Translation = {
     save: 'Сохранить',
     exitDraw: 'Отмена рисования',
     saveFailedTitle: 'Не удалось сохранить разметку',
+    delete: '🗑 Удалить',
     loadFailed: 'Не удалось открыть файл',
   },
   notify: {

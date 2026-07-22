@@ -79,6 +79,10 @@ export const ar: Translation = {
     finished: 'انتهت الجلسة',
     toStart: 'إلى البداية',
     noActive: 'لا توجد جلسة نشطة',
+    deleteTitle: 'حذف الملف؟',
+    deleteMsg: 'سيُحذف الملف نهائيًا من الفحص.',
+    deleteConfirm: 'حذف',
+    plateProtected: 'لا يمكن حذف صورة لوحة الترخيص.',
   },
   complete: {
     title: 'تم',
@@ -150,6 +154,7 @@ export const ar: Translation = {
     save: 'حفظ',
     exitDraw: 'إلغاء الرسم',
     saveFailedTitle: 'تعذّر حفظ التحديد',
+    delete: '🗑 حذف',
     loadFailed: 'تعذّر فتح الملف',
   },
   notify: {

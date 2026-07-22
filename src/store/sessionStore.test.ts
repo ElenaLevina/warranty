@@ -152,6 +152,29 @@ describe('sessionStore — full lifecycle', () => {
     expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
   });
 
+  it('deleteFile removes a photo from the active case and its upload queue', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    const a = await store.getState().startCase('11-111-11', '/tmp/plate.jpg', '113100');
+    await store.getState().addPhoto('/tmp/shot.jpg');
+    expect(store.getState().active?.files.map(f => f.name)).toContain('photo_001.jpg');
+
+    await store.getState().deleteFile('photo_001.jpg');
+
+    // Gone from the active meta, the queue and the uploads badge map.
+    expect(store.getState().active?.files.map(f => f.name)).toEqual(['plate.jpg']);
+    expect(services.index.getQueue().some(q => q.filePath === `${a}/photo_001.jpg`)).toBe(false);
+    expect(store.getState().uploads['photo_001.jpg']).toBeUndefined();
+  });
+
+  it('deleteFile refuses to delete the plate photo', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    await store.getState().startCase('11-111-11', '/tmp/plate.jpg', '113100');
+    await expect(store.getState().deleteFile('plate.jpg')).rejects.toThrow();
+    expect(store.getState().active?.files.map(f => f.name)).toEqual(['plate.jpg']);
+  });
+
   it('resendCase re-queues only the selected case', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

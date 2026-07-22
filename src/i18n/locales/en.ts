@@ -77,6 +77,10 @@ export const en = {
     finished: 'Session finished',
     toStart: 'To start',
     noActive: 'No active session',
+    deleteTitle: 'Delete this file?',
+    deleteMsg: 'The file will be permanently removed from the inspection.',
+    deleteConfirm: 'Delete',
+    plateProtected: 'The plate photo cannot be deleted.',
   },
   complete: {
     title: 'Done',
@@ -148,6 +152,7 @@ export const en = {
     save: 'Save',
     exitDraw: 'Cancel drawing',
     saveFailedTitle: 'Could not save the markup',
+    delete: '🗑 Delete',
     loadFailed: 'Could not open the file',
   },
   notify: {

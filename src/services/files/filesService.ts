@@ -220,6 +220,26 @@ export class FilesService {
     return meta;
   }
 
+  /**
+   * Delete a single media file from an OPEN case (a low-quality photo/video the
+   * mechanic wants to discard). The plate photo (plate.jpg) is the case anchor
+   * and cannot be deleted. Removes the sealed file and its session.json entry.
+   */
+  async deleteFile(caseId: string, fileName: string): Promise<SessionMeta> {
+    if (fileName === 'plate.jpg') {
+      throw new Error('plate.jpg cannot be deleted');
+    }
+    const meta = await this.assertOpen(caseId, 'deleteFile');
+    const idx = meta.files.findIndex(f => f.name === fileName);
+    if (idx === -1) {
+      throw new Error(`No file "${fileName}" in case ${caseId}`);
+    }
+    await this.fs.unlink(`${this.caseDir(caseId)}/${fileName}`).catch(() => undefined);
+    meta.files.splice(idx, 1);
+    await this.writeSession(caseId, meta);
+    return meta;
+  }
+
   async setDescription(caseId: string, description: string): Promise<void> {
     const meta = await this.assertOpen(caseId, 'setDescription');
     meta.description = description;

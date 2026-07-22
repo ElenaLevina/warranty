@@ -18,11 +18,13 @@ interface Props {
   caseId: string;
   entry: CaseFileEntry;
   onPress?: (entry: CaseFileEntry) => void;
+  /** Long-press a tile to delete a low-quality file (open session grid). */
+  onLongPress?: (entry: CaseFileEntry) => void;
   /** Bump to force re-reading the thumbnail (after the photo was redrawn). */
   version?: number;
 }
 
-export function MediaTile({ caseId, entry, onPress, version = 0 }: Props): React.JSX.Element {
+export function MediaTile({ caseId, entry, onPress, onLongPress, version = 0 }: Props): React.JSX.Element {
   const { preview } = useServices();
   const [thumb, setThumb] = useState<string | null>(null);
 
@@ -48,7 +50,8 @@ export function MediaTile({ caseId, entry, onPress, version = 0 }: Props): React
     <Pressable
       testID={`media-${entry.name}`}
       style={styles.tile}
-      onPress={onPress === undefined ? undefined : () => onPress(entry)}>
+      onPress={onPress === undefined ? undefined : () => onPress(entry)}
+      onLongPress={onLongPress === undefined ? undefined : () => onLongPress(entry)}>
       {thumb !== null ? (
         <Image
           // timestamp busts the RN image cache after the photo was redrawn

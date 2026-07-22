@@ -134,6 +134,24 @@ export function MediaViewerScreen({ navigation, route }: Props): React.JSX.Eleme
     }
   };
 
+  const remove = (): void => {
+    Alert.alert(t('session.deleteTitle'), t('session.deleteMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('session.deleteConfirm'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await actions.deleteFile(fileName);
+            navigation.goBack();
+          } catch (e) {
+            Alert.alert(t('viewer.saveFailedTitle'), e instanceof Error ? e.message : String(e));
+          }
+        },
+      },
+    ]);
+  };
+
   const content = (): React.JSX.Element => {
     if (failed) {
       return <Text style={styles.error}>{t('viewer.loadFailed')}</Text>;
@@ -220,6 +238,12 @@ export function MediaViewerScreen({ navigation, route }: Props): React.JSX.Eleme
             <Text style={styles.btnText}>{t('viewer.draw')}</Text>
           </Pressable>
         )}
+        {/* The plate photo is the case anchor and cannot be deleted. */}
+        {!drawing && fileName !== 'plate.jpg' && (
+          <Pressable testID="delete-file" style={[styles.btn, styles.btnDanger]} onPress={remove}>
+            <Text style={styles.btnText}>{t('viewer.delete')}</Text>
+          </Pressable>
+        )}
         {drawing && (
           <>
             <Pressable
@@ -285,6 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#263238',
   },
   btnPrimary: { backgroundColor: '#2e7d32' },
+  btnDanger: { backgroundColor: '#c62828' },
   btnDisabled: { opacity: 0.4 },
   btnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });

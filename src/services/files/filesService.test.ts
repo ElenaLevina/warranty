@@ -248,6 +248,48 @@ describe('FilesService.replacePhoto (green-pencil markup)', () => {
   });
 });
 
+describe('FilesService.deleteFile', () => {
+  it('removes the file from disk and from session.json (open case)', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.addPhoto(meta.case_id, '/tmp/shot.jpg');
+    await svc.addPhoto(meta.case_id, '/tmp/shot.jpg');
+
+    const updated = await svc.deleteFile(meta.case_id, 'photo_001.jpg');
+
+    expect(await fs.exists(`${ROOT}/${meta.case_id}/photo_001.jpg`)).toBe(false);
+    expect(updated.files.some(f => f.name === 'photo_001.jpg')).toBe(false);
+    // The other photo and the plate stay.
+    expect(await fs.exists(`${ROOT}/${meta.case_id}/photo_002.jpg`)).toBe(true);
+    expect(updated.files.map(f => f.name)).toEqual(['plate.jpg', 'photo_002.jpg']);
+  });
+
+  it('never deletes the plate photo', async () => {
+    const { svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await expect(svc.deleteFile(meta.case_id, 'plate.jpg')).rejects.toThrow();
+  });
+
+  it('rejects deleting a missing file', async () => {
+    const { svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await expect(svc.deleteFile(meta.case_id, 'photo_009.jpg')).rejects.toThrow();
+  });
+
+  it('is blocked on a closed case (READ ONLY + tamper.log)', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.addPhoto(meta.case_id, '/tmp/shot.jpg');
+    await svc.closeCase(meta.case_id);
+
+    await expect(svc.deleteFile(meta.case_id, 'photo_001.jpg')).rejects.toBeInstanceOf(
+      SessionClosedError,
+    );
+    expect(await fs.exists(`${ROOT}/${meta.case_id}/photo_001.jpg`)).toBe(true);
+    expect(await fs.readFile(`${ROOT}/tamper.log`)).toContain('deleteFile');
+  });
+});
+
 describe('FilesService.setOrderType + folder rename on close', () => {
   it('renames the folder to <base>_w on close for a warranty card', async () => {
     const { fs, svc } = await setup();

@@ -84,6 +84,25 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
     await actions.addVideo(clip.path, clip.durationSec);
   };
 
+  // Long-press a thumbnail to delete a low-quality file. The plate photo is the
+  // case anchor and is protected (a short notice instead of a delete prompt).
+  const confirmDelete = (entry: { name: string }): void => {
+    if (entry.name === 'plate.jpg') {
+      Alert.alert(t('session.plateProtected'));
+      return;
+    }
+    Alert.alert(t('session.deleteTitle'), t('session.deleteMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('session.deleteConfirm'),
+        style: 'destructive',
+        onPress: () => {
+          actions.deleteFile(entry.name).catch(() => undefined);
+        },
+      },
+    ]);
+  };
+
   const pickType = (v: OrderType): void => {
     setTypePickerOpen(false);
     actions.setOrderType(v).catch(() => undefined);
@@ -146,6 +165,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
                     fileType: entry.type,
                   })
                 }
+                onLongPress={confirmDelete}
               />
             ))}
           </View>

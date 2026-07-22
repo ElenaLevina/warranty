@@ -43,6 +43,8 @@ export interface SessionState {
   setOrderType(orderType: OrderType): Promise<void>;
   /** Save a marked-up photo OVER the original (open session only). */
   replacePhoto(fileName: string, tmpPath: string): Promise<void>;
+  /** Delete a low-quality file from the active case (not the plate photo). */
+  deleteFile(fileName: string): Promise<void>;
   finish(): Promise<void>;
   /** Retry the upload queue (called on network regained). */
   processUploads(): Promise<void>;
@@ -282,6 +284,23 @@ export function createSessionStore(services: AppServices): SessionStore {
             await preview.warm(meta.case_id, entry, tmpPath);
           }
           set({ active: meta, uploads: { ...get().uploads, [fileName]: 'pending' } });
+        });
+      },
+
+      async deleteFile(fileName: string) {
+        const active = get().active;
+        if (active === null) {
+          return;
+        }
+        await run(async () => {
+          const meta = await files.deleteFile(active.case_id, fileName);
+          // Drop it from the upload queue (never send a discarded file) and
+          // remove its cached thumbnail.
+          index.removeFromQueue(`${active.case_id}/${fileName}`);
+          await preview.invalidate(active.case_id, fileName).catch(() => undefined);
+          const nextUploads = { ...get().uploads };
+          delete nextUploads[fileName];
+          set({ active: meta, uploads: nextUploads });
         });
       },
 

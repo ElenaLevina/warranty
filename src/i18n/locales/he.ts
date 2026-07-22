@@ -79,6 +79,10 @@ export const he: Translation = {
     finished: 'הבדיקה הסתיימה',
     toStart: 'למסך הבית',
     noActive: 'אין בדיקה פעילה',
+    deleteTitle: 'למחוק את הקובץ?',
+    deleteMsg: 'הקובץ יימחק מהבדיקה לצמיתות.',
+    deleteConfirm: 'מחק',
+    plateProtected: 'לא ניתן למחוק את צילום מספר הרישוי.',
   },
   complete: {
     title: 'הסתיים',
@@ -149,6 +153,7 @@ export const he: Translation = {
     clear: 'נקה',
     save: 'שמור',
     exitDraw: 'בטל ציור',
+    delete: '🗑 מחק',
     saveFailedTitle: 'לא ניתן לשמור את הסימון',
     loadFailed: 'לא ניתן לפתוח את הקובץ',
   },
