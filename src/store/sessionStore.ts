@@ -16,6 +16,7 @@ import type {
   SessionMeta,
   UploadStatus,
 } from '../types';
+import { RECOMMENDATION_FILE } from '../services/files/filesService';
 import { pickPlate } from '../services/ocr/plateParser';
 import { pickOrderNumber } from '../services/ocr/orderNumberParser';
 
@@ -41,8 +42,8 @@ export interface SessionState {
   addPhoto(tmpPath: string): Promise<void>;
   addVideo(tmpPath: string, durationSec: number): Promise<void>;
   setDescription(text: string): Promise<void>;
-  /** Set the optional diagcode (דיאקוד) text for the active case. */
-  setDiagcode(text: string): Promise<void>;
+  /** Set the optional recommendation (המלצה) flag for the active case. */
+  setRecommendation(on: boolean): Promise<void>;
   /** Set the card type (סוג כרטיס) — required before finish; sets the folder letter. */
   setOrderType(orderType: OrderType): Promise<void>;
   /** Save a marked-up photo OVER the original (open session only). */
@@ -120,9 +121,9 @@ export function createSessionStore(services: AppServices): SessionStore {
      */
     async function enqueueClosedCase(meta: SessionMeta): Promise<void> {
       const names = meta.files.map(f => f.name);
-      // closeCase materialized diagcode.txt only when the field was non-empty.
-      if (meta.diagcode !== undefined && meta.diagcode.trim().length > 0) {
-        names.push('diagcode.txt');
+      // closeCase materialized recommendation.txt only when the flag was on.
+      if (meta.recommendation === true) {
+        names.push(RECOMMENDATION_FILE);
       }
       for (const name of names) {
         // eslint-disable-next-line no-await-in-loop
@@ -289,13 +290,13 @@ export function createSessionStore(services: AppServices): SessionStore {
         });
       },
 
-      async setDiagcode(text: string) {
+      async setRecommendation(on: boolean) {
         const active = get().active;
         if (active === null) {
           return;
         }
         await run(async () => {
-          const meta = await files.setDiagcode(active.case_id, text);
+          const meta = await files.setRecommendation(active.case_id, on);
           set({ active: meta });
         });
       },

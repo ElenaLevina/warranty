@@ -325,36 +325,51 @@ describe('FilesService resilience to an unreadable case', () => {
   });
 });
 
-describe('FilesService diagcode (דיאקוד)', () => {
-  it('materializes a trimmed diagcode.txt on close when the field is set', async () => {
+describe('FilesService recommendation (המלצה)', () => {
+  it('materializes recommendation.txt with the fixed text when the flag is on', async () => {
     const { fs, svc } = await setup();
     const meta = await createOpenCase(svc);
-    await svc.setDiagcode(meta.case_id, '  ABC-123  ');
+    await svc.setRecommendation(meta.case_id, true);
     await svc.setOrderType(meta.case_id, 'warranty');
     const closed = await svc.closeCase(meta.case_id);
 
-    expect(await fs.exists(`${ROOT}/${closed.case_id}/diagcode.txt`)).toBe(true);
-    expect(await fs.readFile(`${ROOT}/${closed.case_id}/diagcode.txt`)).toBe('ABC-123');
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/recommendation.txt`)).toBe(true);
+    expect(await fs.readFile(`${ROOT}/${closed.case_id}/recommendation.txt`)).toBe(
+      'Path to check card number:',
+    );
     // Not a media file: never added to files[].
-    expect(closed.files.some(f => f.name === 'diagcode.txt')).toBe(false);
+    expect(closed.files.some(f => f.name === 'recommendation.txt')).toBe(false);
   });
 
-  it('creates no diagcode.txt when the field is blank/empty', async () => {
+  it('creates no file when the flag is off (the default)', async () => {
     const { fs, svc } = await setup();
     const meta = await createOpenCase(svc);
-    await svc.setDiagcode(meta.case_id, '   ');
     await svc.setOrderType(meta.case_id, 'recall');
     const closed = await svc.closeCase(meta.case_id);
 
-    expect(await fs.exists(`${ROOT}/${closed.case_id}/diagcode.txt`)).toBe(false);
+    expect(closed.recommendation).toBeUndefined();
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/recommendation.txt`)).toBe(false);
   });
 
-  it('rejects setDiagcode on a closed case', async () => {
+  it('creates no file when the flag was ticked and then unticked', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.setRecommendation(meta.case_id, true);
+    await svc.setRecommendation(meta.case_id, false);
+    await svc.setOrderType(meta.case_id, 'warranty');
+    const closed = await svc.closeCase(meta.case_id);
+
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/recommendation.txt`)).toBe(false);
+  });
+
+  it('rejects setRecommendation on a closed case', async () => {
     const { svc } = await setup();
     const meta = await createOpenCase(svc);
     await svc.setOrderType(meta.case_id, 'warranty');
     const closed = await svc.closeCase(meta.case_id);
-    await expect(svc.setDiagcode(closed.case_id, 'X')).rejects.toBeInstanceOf(SessionClosedError);
+    await expect(svc.setRecommendation(closed.case_id, true)).rejects.toBeInstanceOf(
+      SessionClosedError,
+    );
   });
 });
 

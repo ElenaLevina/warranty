@@ -21,6 +21,10 @@ import { SessionClosedError } from './errors';
 
 const READ_ONLY_MODE = 0o444;
 
+/** Artifact written for the PC when the recommendation (המלצה) flag is on. */
+export const RECOMMENDATION_FILE = 'recommendation.txt';
+export const RECOMMENDATION_TEXT = 'Path to check card number:';
+
 export interface CreateCaseParams {
   plateNumber: string;
   /** 6-digit repair-order number (mandatory step before the plate scan). */
@@ -246,10 +250,10 @@ export class FilesService {
     await this.writeSession(caseId, meta);
   }
 
-  /** Set the optional diagcode (דיאקוד) text. Materialized as a file at finish. */
-  async setDiagcode(caseId: string, diagcode: string): Promise<SessionMeta> {
-    const meta = await this.assertOpen(caseId, 'setDiagcode');
-    meta.diagcode = diagcode;
+  /** Set the optional recommendation (המלצה) flag. Materialized as a file at finish. */
+  async setRecommendation(caseId: string, on: boolean): Promise<SessionMeta> {
+    const meta = await this.assertOpen(caseId, 'setRecommendation');
+    meta.recommendation = on;
     await this.writeSession(caseId, meta);
     return meta;
   }
@@ -307,12 +311,12 @@ export class FilesService {
     const finalId = meta.case_id;
     await this.writeSession(finalId, meta);
 
-    // Materialize the optional diagcode (דיאקוד) as a plain-text artifact for
-    // the PC — only when non-empty. Sealed at rest like media; the upload
-    // pipeline decrypts it to plaintext (diagcode.txt) on the receiver.
+    // Materialize the optional recommendation (המלצה) as a plain-text artifact
+    // for the PC — only when the flag is ticked. Sealed at rest like media; the
+    // upload pipeline decrypts it to plaintext (recommendation.txt) on the PC.
     const dir = this.caseDir(finalId);
-    if (meta.diagcode !== undefined && meta.diagcode.trim().length > 0) {
-      await this.sealText(dir, 'diagcode.txt', meta.diagcode.trim());
+    if (meta.recommendation === true) {
+      await this.sealText(dir, RECOMMENDATION_FILE, RECOMMENDATION_TEXT);
     }
 
     // Defense-in-depth: drop the write bit on the case files (no-op on some FS).

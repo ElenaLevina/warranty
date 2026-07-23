@@ -7,7 +7,6 @@ import {
   Alert,
   Pressable,
   Modal,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -34,8 +33,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const phase = useSessionStore(s => s.phase);
   const insets = useSafeAreaInsets();
   const [typePickerOpen, setTypePickerOpen] = useState(false);
-  // Local buffer for the optional diagcode (דיאקוד); persisted on blur/finish.
-  const [diag, setDiag] = useState(active?.diagcode ?? '');
+
 
   // "To start" header button: save the session (it stays open on disk) and go
   // back to Start, where the mechanic can begin a new inspection or resume any
@@ -78,6 +76,7 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
   const photoCount = files.filter(f => f.type === 'photo').length;
   const videoCount = files.filter(f => f.type === 'video').length;
   const orderType = active.order_type;
+  const recommended = active.recommendation === true;
 
   const typeLabel = (v: OrderType): string =>
     v === 'recall' ? t('session.orderTypeRecall') : t('session.orderTypeWarranty');
@@ -135,8 +134,6 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           const p = photoCount;
           const v = videoCount;
           try {
-            // Persist the diagcode buffer in case the input never blurred.
-            await actions.setDiagcode(diag);
             await actions.finish();
             navigation.replace('SessionComplete', {
               plate,
@@ -154,8 +151,8 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Lift the fixed bottom bar above the keyboard so the diagcode input is
-          visible while typing (edge-to-edge neutralizes manifest adjustResize). */}
+      {/* Keep the fixed bottom bar above the keyboard if a text field is ever
+          added back here (edge-to-edge neutralizes manifest adjustResize). */}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -219,18 +216,16 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
               </Pressable>
             </View>
             <View style={styles.formCol}>
-              <Text style={styles.label}>{t('session.diagcode')}</Text>
-              <TextInput
-                testID="diagcode-input"
-                style={styles.diagInput}
-                value={diag}
-                onChangeText={setDiag}
-                onEndEditing={() => actions.setDiagcode(diag).catch(() => undefined)}
-                placeholder={t('session.diagcodePlaceholder')}
-                placeholderTextColor="#9aa5ad"
-                autoCapitalize="characters"
-                autoCorrect={false}
-              />
+              <Text style={styles.label}>{t('session.recommendation')}</Text>
+              {/* Optional flag, off by default; persisted immediately on tap. */}
+              <Pressable
+                testID="recommendation-check"
+                style={styles.checkBox}
+                onPress={() => actions.setRecommendation(!recommended).catch(() => undefined)}>
+                <Text style={recommended ? styles.checkOn : styles.checkOff}>
+                  {recommended ? '☑' : '☐'}
+                </Text>
+              </Pressable>
             </View>
           </View>
 
@@ -290,16 +285,17 @@ const styles = StyleSheet.create({
   label: { fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 6 },
   formRow: { flexDirection: 'row', gap: 12 },
   formCol: { flex: 1 },
-  diagInput: {
+  checkBox: {
     borderWidth: 1,
     borderColor: '#cfd8dc',
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#222',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#fff',
   },
+  checkOn: { fontSize: 28, color: '#1565c0', lineHeight: 32 },
+  checkOff: { fontSize: 28, color: '#9aa5ad', lineHeight: 32 },
   select: {
     flexDirection: 'row',
     alignItems: 'center',

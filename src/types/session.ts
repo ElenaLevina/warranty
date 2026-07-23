@@ -49,11 +49,11 @@ export interface SessionMeta {
   /** Описание повреждений, вводит механик. */
   description: string;
   /**
-   * Optional free-text "diagcode" (דיאקוד) recommendation entered by the
-   * mechanic. Materialized as a plain-text diagcode.txt in the case folder at
-   * finish (only when non-empty) and uploaded to the PC alongside the media.
+   * Optional "recommendation" (המלצה) flag ticked by the mechanic. Off by
+   * default. When on, a plain-text recommendation.txt is materialized in the
+   * case folder at finish and uploaded to the PC alongside the media.
    */
-  diagcode?: string;
+  recommendation?: boolean;
   status: SessionStatus;
 }
 

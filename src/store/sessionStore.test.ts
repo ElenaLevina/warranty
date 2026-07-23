@@ -193,25 +193,25 @@ describe('sessionStore — full lifecycle', () => {
     expect(store.getState().pendingUploads).toBe(0);
   });
 
-  it('setDiagcode stores the field and finish enqueues diagcode.txt', async () => {
+  it('setRecommendation stores the flag and finish enqueues recommendation.txt', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
     await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
-    await store.getState().setDiagcode('REC-9');
-    expect(store.getState().active?.diagcode).toBe('REC-9');
+    await store.getState().setRecommendation(true);
+    expect(store.getState().active?.recommendation).toBe(true);
 
     await store.getState().setOrderType('warranty');
     await store.getState().finish();
-    expect(services.index.getQueue().map(i => i.fileName)).toContain('diagcode.txt');
+    expect(services.index.getQueue().map(i => i.fileName)).toContain('recommendation.txt');
   });
 
-  it('finish does not enqueue diagcode.txt when the field is empty', async () => {
+  it('finish does not enqueue recommendation.txt when the flag is off', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
     await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
     await store.getState().setOrderType('warranty');
     await store.getState().finish();
-    expect(services.index.getQueue().map(i => i.fileName)).not.toContain('diagcode.txt');
+    expect(services.index.getQueue().map(i => i.fileName)).not.toContain('recommendation.txt');
   });
 
   it('queues nothing while the session is open; enqueues the whole case at finish', async () => {
