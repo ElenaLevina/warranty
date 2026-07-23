@@ -21,6 +21,8 @@ class FakeTransport implements UploadTransport {
   completes: CompleteParams[] = [];
   failUpload = false;
   failComplete = false;
+  healthy = true;
+  healthCalls = 0;
 
   async uploadFile(params: UploadFileParams): Promise<void> {
     if (this.failUpload) {
@@ -35,7 +37,8 @@ class FakeTransport implements UploadTransport {
     this.completes.push(params);
   }
   async health(): Promise<boolean> {
-    return true;
+    this.healthCalls += 1;
+    return this.healthy;
   }
 }
 
@@ -132,6 +135,34 @@ describe('HttpUploadService', () => {
     const off = harness({ enabled: false, baseUrl: '', token: '' });
     await off.svc.completeCase('caseX', '{}');
     expect(off.transport.completes).toHaveLength(0);
+  });
+});
+
+describe('HttpUploadService skips the whole pass when the receiver is down', () => {
+  it('probes once and does NOT decrypt/upload anything, leaving items queued', async () => {
+    const { svc, idx, transport } = harness(ENABLED);
+    transport.healthy = false;
+    await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
+    await svc.enqueue(item('caseX/video_001.mp4', 'video_001.mp4'));
+
+    await svc.processQueue();
+
+    // One cheap probe, zero upload attempts (no per-file decrypt + timeout).
+    expect(transport.healthCalls).toBe(1);
+    expect(transport.uploads).toHaveLength(0);
+    expect(idx.getQueue().every(i => i.status === 'pending')).toBe(true);
+
+    // Receiver back: the same queue drains normally.
+    transport.healthy = true;
+    await svc.processQueue();
+    expect(transport.uploads).toHaveLength(2);
+    expect(idx.getQueue().every(i => i.status === 'uploaded')).toBe(true);
+  });
+
+  it('does not probe at all when the queue is empty', async () => {
+    const { svc, transport } = harness(ENABLED);
+    await svc.processQueue();
+    expect(transport.healthCalls).toBe(0);
   });
 });
 

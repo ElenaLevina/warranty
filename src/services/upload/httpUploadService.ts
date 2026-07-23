@@ -42,7 +42,25 @@ export class HttpUploadService implements UploadService {
   }
 
   async processQueue(): Promise<void> {
+    const s = this.deps.config.get();
+    if (!s.enabled || s.baseUrl.length === 0) {
+      return; // offline/not configured: leave everything pending
+    }
     const pending = this.deps.index.getQueue().filter(i => i.status !== 'uploaded');
+    const completes = this.deps.index.getPendingCompletes();
+    if (pending.length === 0 && completes.length === 0) {
+      return; // nothing to do: don't even probe
+    }
+    // ONE cheap probe before any expensive work. Uploading decrypts each queued
+    // file in full to a temp (videos are tens of MB) and then waits out a
+    // timeout; doing that for the whole queue while the receiver is unreachable
+    // burned memory/CPU on every app start and starved the camera + ML Kit OCR
+    // (spinner, then an out-of-memory crash while scanning the work order).
+    // If the receiver is down, skip the pass — items stay queued for next time.
+    const reachable = await this.deps.transport.health(s.baseUrl, s.token).catch(() => false);
+    if (!reachable) {
+      return;
+    }
     for (const item of pending) {
       // Sequential to keep memory/network sane (videos can be large).
       // eslint-disable-next-line no-await-in-loop
@@ -50,7 +68,7 @@ export class HttpUploadService implements UploadService {
     }
     // session.json of finished cases is retried too: a finish while the PC was
     // unreachable must not lose the case metadata (bug found in field testing).
-    for (const c of this.deps.index.getPendingCompletes()) {
+    for (const c of completes) {
       // eslint-disable-next-line no-await-in-loop
       await this.tryComplete(c.caseId, c.sessionJson);
     }
