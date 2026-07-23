@@ -29,6 +29,19 @@ import (
 // caseId / filename must be simple names (no path traversal).
 var safeName = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
+// RNFS.stat on the phone wobbles a file's reported size by a couple of bytes
+// between reads of the same file. Sizes within this tolerance are treated as the
+// SAME file (idempotent retry), so a re-send is not needlessly re-written. A
+// genuinely different file (e.g. green-pencil markup) differs by far more.
+const sizeTolerance = 16
+
+func absDiff(a, b int64) int64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
+}
+
 type server struct {
 	root  string
 	token string
@@ -129,17 +142,18 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 
 	dest := filepath.Join(dir, name)
 
-	// Idempotency: skip if already stored with the SAME size (safe retries).
-	// A same-name file with a different size is a legitimate replacement
-	// (photo re-saved with green-pencil markup) and falls through to the
-	// atomic write below, which overwrites the previous version.
+	// Idempotency: skip if already stored at (about) the same size (safe retries).
+	// The tolerance absorbs the RNFS.stat wobble so a re-send is not re-written.
+	// A same-name file that differs by more than the tolerance is a legitimate
+	// replacement (photo re-saved with green-pencil markup) and falls through to
+	// the atomic write below, which overwrites the previous version.
 	if st, statErr := os.Stat(dest); statErr == nil {
-		if declaredSize == 0 || st.Size() == declaredSize {
+		if declaredSize == 0 || absDiff(st.Size(), declaredSize) <= sizeTolerance {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintln(w, "already stored")
 			return
 		}
-		log.Printf("replace %s/%s: size %d -> %d (marked-up photo)", caseID, name, st.Size(), declaredSize)
+		log.Printf("replace %s/%s: size %d -> %d (changed)", caseID, name, st.Size(), declaredSize)
 	}
 
 	// Write atomically: temp file -> rename.
@@ -161,9 +175,9 @@ func (s *server) handleFile(w http.ResponseWriter, r *http.Request) {
 	tmp.Close()
 
 	// Integrity: reject only a SHORT upload (truncated / dropped connection).
-	// RNFS.stat can be off by a couple of bytes on a complete file, so an
+	// RNFS.stat can be off by a couple of bytes on a complete file, so a small
 	// over-count is tolerated; truncation makes `written` much smaller.
-	if declaredSize > 0 && written < declaredSize {
+	if declaredSize > 0 && written+sizeTolerance < declaredSize {
 		os.Remove(tmpName)
 		log.Printf("REJECT %s/%s: truncated upload (want >=%d, got %d)",
 			caseID, name, declaredSize, written)
