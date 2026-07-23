@@ -170,12 +170,19 @@ export function createSessionStore(services: AppServices): SessionStore {
 
       async bootstrap() {
         await run(async () => {
-          // Remove any leftover decrypted preview temp files (no-op for passthrough).
-          await crypto.clearDecryptedCache?.();
-          // Drop any session.json completion queued by an older build — the PC
-          // no longer receives session.json, so it must never be flushed.
-          for (const c of index.getPendingCompletes()) {
-            index.removePendingComplete(c.caseId);
+          // Housekeeping must NEVER prevent the session list from loading: the
+          // mechanic has to reach open sessions even if a cleanup step fails.
+          try {
+            // Remove leftover decrypted preview temp files (no-op for passthrough).
+            await crypto.clearDecryptedCache?.();
+            // Drop any session.json completion queued by an older build — the PC
+            // no longer receives session.json, so it must never be flushed.
+            for (const c of index.getPendingCompletes()) {
+              index.removePendingComplete(c.caseId);
+            }
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.warn('[bootstrap] housekeeping failed:', e instanceof Error ? e.message : e);
           }
           await refreshOpenSessions(set);
           refreshPending();

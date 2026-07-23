@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,6 +18,7 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
   const { t } = useTranslation();
   const openSessions = useSessionStore(s => s.openSessions);
   const pendingUploads = useSessionStore(s => s.pendingUploads);
+  const error = useSessionStore(s => s.error);
   const actions = useSessionActions();
   const mechanic = useAuthStore(s => s.current);
   const authActions = useAuthActions();
@@ -27,9 +28,15 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Never fail silently: a session that cannot be opened must say so, otherwise
+  // the tap looks like the app is ignoring the mechanic.
   const resume = async (caseId: string): Promise<void> => {
-    await actions.resume(caseId);
-    navigation.navigate('ActiveSession', { caseId });
+    try {
+      await actions.resume(caseId);
+      navigation.navigate('ActiveSession', { caseId });
+    } catch (e) {
+      Alert.alert(t('start.openFailed'), e instanceof Error ? e.message : String(e));
+    }
   };
 
   return (
@@ -71,6 +78,12 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
           </View>
         <Text style={styles.subtitle}>{t('start.subtitle')}</Text>
       </View>
+
+      {error !== null && (
+        <Text testID="start-error" style={styles.errorText}>
+          {t(error)}
+        </Text>
+      )}
 
       {pendingUploads > 0 && (
         <Pressable
@@ -142,6 +155,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   pendingText: { color: '#e65100', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  errorText: { color: '#c62828', fontSize: 13, textAlign: 'center', marginTop: 16 },
   openBlock: { marginTop: 36, flex: 1 },
   openTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12, color: '#333' },
   row: {

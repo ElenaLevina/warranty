@@ -21,6 +21,7 @@ export const ar: Translation = {
     settings: 'الإعدادات',
     logout: 'خروج',
     pendingUploads: '⚠ {{count}} ملفات بانتظار الإرسال إلى الحاسوب — انقر لإعادة المحاولة',
+    openFailed: 'تعذّر فتح الجلسة',
   },
   plate: {
     title: 'رقم السيارة',

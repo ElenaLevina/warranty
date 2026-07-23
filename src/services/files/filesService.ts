@@ -330,7 +330,15 @@ export class FilesService {
     const ids = await this.listAllCaseIds();
     const out: CaseListItem[] = [];
     for (const id of ids) {
-      const m = await this.readSession(id);
+      // Same resilience as listOpenSessions: skip a case we cannot read.
+      let m: SessionMeta;
+      try {
+        m = await this.readSession(id);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn(`[files] skipping unreadable case ${id}:`, e instanceof Error ? e.message : e);
+        continue;
+      }
       out.push({
         case_id: m.case_id,
         plate_number: m.plate_number,
@@ -380,7 +388,17 @@ export class FilesService {
       if (!(await this.fs.exists(sessionPath))) {
         continue;
       }
-      const meta = await this.readSession(d.name);
+      // Resilience: ONE unreadable case (truncated write, undecryptable
+      // session.json) must never hide every other session from the mechanic.
+      // Skip the bad folder and keep listing the rest.
+      let meta: SessionMeta;
+      try {
+        meta = await this.readSession(d.name);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn(`[files] skipping unreadable case ${d.name}:`, e instanceof Error ? e.message : e);
+        continue;
+      }
       const ownedByMechanic = mechanicId === undefined || meta.mechanic_id === mechanicId;
       if (meta.status === 'open' && ownedByMechanic) {
         result.push({

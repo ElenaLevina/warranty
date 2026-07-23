@@ -290,6 +290,41 @@ describe('FilesService.deleteFile', () => {
   });
 });
 
+describe('FilesService resilience to an unreadable case', () => {
+  /** Create a second case and corrupt its session.json. Returns both ids. */
+  async function goodAndCorrupt(ctx: Ctx): Promise<{ good: string; bad: string }> {
+    const good = await createOpenCase(ctx.svc);
+    await ctx.fs.writeFile('/tmp/plate2.jpg', 'PLATE_IMG_2');
+    const bad = await ctx.svc.createCase({
+      plateNumber: '22-222-22',
+      orderNumber: '113200',
+      mechanicId: 'user_042',
+      plateImageTmpPath: '/tmp/plate2.jpg',
+    });
+    // Truncated / undecryptable session.json (killed mid-write, wrong key…).
+    await ctx.fs.writeFile(`${ROOT}/${bad.case_id}/session.json`, '{ not valid json');
+    return { good: good.case_id, bad: bad.case_id };
+  }
+
+  it('still lists the healthy open sessions (one bad case must not hide all)', async () => {
+    const ctx = await setup();
+    const { good, bad } = await goodAndCorrupt(ctx);
+
+    const open = await ctx.svc.listOpenSessions();
+    expect(open.map(s => s.case_id)).toEqual([good]);
+    expect(open.map(s => s.case_id)).not.toContain(bad);
+  });
+
+  it('still lists the healthy cases in the recovery list', async () => {
+    const ctx = await setup();
+    const { good, bad } = await goodAndCorrupt(ctx);
+
+    const all = await ctx.svc.listAllCases();
+    expect(all.map(c => c.case_id)).toEqual([good]);
+    expect(all.map(c => c.case_id)).not.toContain(bad);
+  });
+});
+
 describe('FilesService diagcode (דיאקוד)', () => {
   it('materializes a trimmed diagcode.txt on close when the field is set', async () => {
     const { fs, svc } = await setup();

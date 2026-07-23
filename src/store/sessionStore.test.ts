@@ -152,6 +152,23 @@ describe('sessionStore — full lifecycle', () => {
     expect(events.filter(e => e.kind === 'caseClosed')).toHaveLength(0);
   });
 
+  it('still lists open sessions when startup housekeeping fails', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    store.getState().leaveActive();
+
+    // Housekeeping blows up (e.g. Keystore temp cleanup). The mechanic must
+    // still reach the open sessions — the list is local and must not be lost.
+    (services.crypto as { clearDecryptedCache?: () => Promise<void> }).clearDecryptedCache =
+      async () => {
+        throw new Error('keystore unavailable');
+      };
+
+    await store.getState().bootstrap();
+    expect(store.getState().openSessions.map(s => s.case_id)).toEqual([caseId]);
+  });
+
   it('tracks pending uploads for the Start-screen badge', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

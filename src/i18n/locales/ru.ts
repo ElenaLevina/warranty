@@ -20,6 +20,7 @@ export const ru: Translation = {
     settings: 'Настройки',
     logout: 'Выйти',
     pendingUploads: '⚠ {{count}} файлов ждут отправки на ПК — нажмите для повтора',
+    openFailed: 'Не удалось открыть сессию',
   },
   plate: {
     title: 'Номер авто',

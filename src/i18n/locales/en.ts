@@ -19,6 +19,7 @@ export const en = {
     settings: 'Settings',
     logout: 'Log out',
     pendingUploads: '⚠ {{count}} files waiting to be sent to the PC — tap to retry',
+    openFailed: 'Could not open the session',
   },
   plate: {
     title: 'Plate number',
