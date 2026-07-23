@@ -32,6 +32,13 @@ describe('authStore', () => {
     expect(store.getState().status).toBe('no-users');
   });
 
+  it('accepts an admin without a last name (last name is optional)', () => {
+    const { store } = harness();
+    expect(store.getState().createFirstAdmin({ ...ADMIN, lastName: '' })).toBe(true);
+    expect(store.getState().status).toBe('authenticated');
+    expect(store.getState().current?.lastName).toBe('');
+  });
+
   it('creates the first admin and becomes authenticated', () => {
     const { store } = harness();
     expect(store.getState().createFirstAdmin(ADMIN)).toBe(true);

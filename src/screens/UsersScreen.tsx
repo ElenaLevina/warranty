@@ -31,7 +31,7 @@ export function UsersScreen({ navigation }: Props): React.JSX.Element {
               style={styles.row}
               onPress={() => navigation.navigate('UserEdit', { userId: u.id })}>
               <Text style={styles.name}>
-                {u.firstName} {u.lastName}
+                {`${u.firstName} ${u.lastName}`.trim()}
               </Text>
               <Text style={styles.meta}>
                 {u.role === 'admin' ? t('auth.roleAdmin') : t('auth.roleMechanic')}

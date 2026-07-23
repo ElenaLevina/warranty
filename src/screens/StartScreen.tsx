@@ -44,7 +44,7 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
       <View style={styles.topBar}>
         {mechanic !== null && (
           <Text testID="current-mechanic" style={styles.mechanic}>
-            {mechanic.firstName} {mechanic.lastName}
+            {`${mechanic.firstName} ${mechanic.lastName}`.trim()}
           </Text>
         )}
         <View style={styles.topActions}>

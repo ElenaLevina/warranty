@@ -64,7 +64,7 @@ export function UserPickerScreen(): React.JSX.Element {
                 onPress={() => select(u.id)}
                 style={[styles.row, active && styles.rowActive]}>
                 <Text style={[styles.rowName, active && styles.rowNameActive]}>
-                  {u.firstName} {u.lastName}
+                  {`${u.firstName} ${u.lastName}`.trim()}
                 </Text>
               </Pressable>
             );
@@ -73,7 +73,7 @@ export function UserPickerScreen(): React.JSX.Element {
 
         {selected !== null && (
           <View style={styles.pinBlock}>
-            <Text style={styles.pinLabel}>{t('auth.loginAs', { name: `${selected.firstName} ${selected.lastName}` })}</Text>
+            <Text style={styles.pinLabel}>{t('auth.loginAs', { name: `${selected.firstName} ${selected.lastName}`.trim() })}</Text>
             <TextInput
               testID="pin-input"
               style={styles.input}

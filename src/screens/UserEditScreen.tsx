@@ -43,7 +43,8 @@ export function UserEditScreen({ navigation, route }: Props): React.JSX.Element 
   const isEdit = existing !== null;
 
   const save = (): void => {
-    if (firstName.trim().length === 0 || lastName.trim().length === 0) {
+    // Last name is optional (service-center request): only the first name is required.
+    if (firstName.trim().length === 0) {
       setError('auth.nameRequired');
       return;
     }

@@ -85,7 +85,8 @@ export function createAuthStore(auth: AuthService): AuthStore {
     createFirstAdmin(input) {
       const firstName = input.firstName.trim();
       const lastName = input.lastName.trim();
-      if (firstName.length === 0 || lastName.length === 0) {
+      // Last name is optional (service-center request): only the first name is required.
+      if (firstName.length === 0) {
         set({ error: 'auth.nameRequired' });
         return false;
       }
