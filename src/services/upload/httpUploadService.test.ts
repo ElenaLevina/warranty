@@ -23,6 +23,8 @@ class FakeTransport implements UploadTransport {
   failComplete = false;
   healthy = true;
   healthCalls = 0;
+  /** When set, health() waits on this before resolving (to overlap passes). */
+  healthGate?: Promise<void>;
 
   async uploadFile(params: UploadFileParams): Promise<void> {
     if (this.failUpload) {
@@ -38,6 +40,9 @@ class FakeTransport implements UploadTransport {
   }
   async health(): Promise<boolean> {
     this.healthCalls += 1;
+    if (this.healthGate !== undefined) {
+      await this.healthGate;
+    }
     return this.healthy;
   }
 }
@@ -163,6 +168,24 @@ describe('HttpUploadService skips the whole pass when the receiver is down', () 
     const { svc, transport } = harness(ENABLED);
     await svc.processQueue();
     expect(transport.healthCalls).toBe(0);
+  });
+
+  it('never runs two passes concurrently (bursty NetInfo events)', async () => {
+    const { svc, transport } = harness(ENABLED);
+    await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
+    // Hold the first pass inside health() so a second trigger overlaps it.
+    let release = (): void => {};
+    transport.healthGate = new Promise<void>(r => {
+      release = r;
+    });
+
+    const first = svc.processQueue();
+    const second = svc.processQueue(); // must early-return (guard), not probe again
+    release();
+    await Promise.all([first, second]);
+
+    expect(transport.healthCalls).toBe(1);
+    expect(transport.uploads).toHaveLength(1);
   });
 });
 

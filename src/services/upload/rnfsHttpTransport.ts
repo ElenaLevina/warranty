@@ -124,15 +124,27 @@ export class RnfsHttpTransport implements UploadTransport {
   }
 
   async health(baseUrl: string, token: string): Promise<boolean> {
-    try {
-      const res = await fetchWithTimeout(
-        `${baseUrl}/v1/health`,
-        { headers: { Authorization: `Bearer ${token}` } },
-        HEALTH_TIMEOUT_MS,
-      );
-      return res.ok;
-    } catch {
-      return false; // network error OR timeout -> "no connection"
-    }
+    const probe = (async (): Promise<boolean> => {
+      try {
+        const res = await fetchWithTimeout(
+          `${baseUrl}/v1/health`,
+          { headers: { Authorization: `Bearer ${token}` } },
+          HEALTH_TIMEOUT_MS,
+        );
+        return res.ok;
+      } catch {
+        return false; // network error OR timeout -> "no connection"
+      }
+    })();
+    // Hard guarantee: resolve false after the timeout even if the fetch never
+    // settles. On Android, AbortController does NOT reliably cut a connect that
+    // is stuck on a Wi-Fi-with-no-route (dead LAN): the fetch can hang far past
+    // its timer. Racing a plain timer keeps this promise bounded no matter what,
+    // so callers (queue probe, Settings test) never wait indefinitely.
+    let guard: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<boolean>(resolve => {
+      guard = setTimeout(() => resolve(false), HEALTH_TIMEOUT_MS + 500);
+    });
+    return Promise.race([probe, timeout]).finally(() => clearTimeout(guard));
   }
 }

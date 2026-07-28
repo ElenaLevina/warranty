@@ -14,7 +14,7 @@
 import type { UploadService } from './uploadService';
 import type { UploadConfig } from './uploadConfig';
 import type { UploadTransport } from './uploadTransport';
-import type { StorageIndex } from '../storage/storageIndex';
+import type { PendingComplete, StorageIndex } from '../storage/storageIndex';
 import type { CryptoService } from '../crypto/cryptoService';
 import type { FileSystem } from '../files/fileSystem';
 import type { UploadQueueItem, UploadStatus } from '../../types';
@@ -32,6 +32,10 @@ export interface HttpUploadDeps {
 }
 
 export class HttpUploadService implements UploadService {
+  /** Guard so overlapping triggers (app start + NetInfo events + finish) never
+   *  run the queue concurrently — otherwise dead-Wi-Fi health probes pile up. */
+  private running = false;
+
   constructor(private readonly deps: HttpUploadDeps) {}
 
   async enqueue(item: UploadQueueItem): Promise<void> {
@@ -51,6 +55,25 @@ export class HttpUploadService implements UploadService {
     if (pending.length === 0 && completes.length === 0) {
       return; // nothing to do: don't even probe
     }
+    // Never run two passes at once. NetInfo can fire connectivity events in
+    // bursts, and app-start + finish can overlap them; without this guard each
+    // trigger launches its own (possibly hanging) health probe + upload loop.
+    if (this.running) {
+      return;
+    }
+    this.running = true;
+    try {
+      await this.runPass(pending, completes);
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private async runPass(
+    pending: UploadQueueItem[],
+    completes: PendingComplete[],
+  ): Promise<void> {
+    const s = this.deps.config.get();
     // ONE cheap probe before any expensive work. Uploading decrypts each queued
     // file in full to a temp (videos are tens of MB) and then waits out a
     // timeout; doing that for the whole queue while the receiver is unreachable
