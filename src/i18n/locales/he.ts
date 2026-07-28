@@ -115,6 +115,9 @@ export const he: Translation = {
     resendNote: 'מעלה מחדש את כל הבדיקות שבטלפון (לתיקיות לפי מכשיר). לשחזור קבצים שנדרסו במחשב.',
     resendDone: 'נשלחו מחדש {{count}} בדיקות',
     resendFail: 'השליחה מחדש נכשלה',
+    updateTitle: 'עדכון האפליקציה',
+    updateNote: 'הורדת גרסה חדשה מהמחשב שברשת.',
+    update: 'עדכן את האפליקציה',
   },
   auth: {
     registerTitle: 'רישום מכונאי',

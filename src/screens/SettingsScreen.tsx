@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -205,6 +206,17 @@ export function SettingsScreen({ navigation }: Props): React.JSX.Element {
           })
         )}
 
+        <Text style={[styles.title, styles.uploadTitle]}>{t('settings.updateTitle')}</Text>
+        <Text style={styles.note}>{t('settings.updateNote')}</Text>
+        <PrimaryButton
+          testID="open-update"
+          title={t('settings.update')}
+          variant="secondary"
+          // Opens the update page in the browser; the mechanic taps the APK there.
+          onPress={() => Linking.openURL(APP_CONFIG.updateUrl).catch(() => undefined)}
+        />
+        <Text style={styles.updateUrl}>{APP_CONFIG.updateUrl}</Text>
+
         <Text style={styles.version}>v{APP_CONFIG.appVersion}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -254,6 +266,7 @@ const styles = StyleSheet.create({
   },
   caseSendText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   caseDone: { color: '#2e7d32', fontSize: 22, fontWeight: '900', minWidth: 96, textAlign: 'center' },
+  updateUrl: { color: '#90a4ae', fontSize: 12, textAlign: 'center', marginTop: 8 },
   version: { color: '#b0bec5', fontSize: 12, textAlign: 'center', marginTop: 24 },
   save: { marginTop: 28 },
 });

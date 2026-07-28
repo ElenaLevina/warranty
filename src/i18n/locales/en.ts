@@ -113,6 +113,9 @@ export const en = {
     resendNote: 'Uploads every case stored on this phone again (into per-device folders). Use to recover files overwritten on the PC.',
     resendDone: 'Re-sent {{count}} cases',
     resendFail: 'Re-send failed',
+    updateTitle: 'App update',
+    updateNote: 'Download a new version from the PC on the network.',
+    update: 'Update the app',
   },
   auth: {
     registerTitle: 'Mechanic registration',
