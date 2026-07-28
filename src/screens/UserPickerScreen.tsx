@@ -84,6 +84,10 @@ export function UserPickerScreen(): React.JSX.Element {
               value={pin}
               onChangeText={setPin}
               autoFocus
+              // Log in straight from the keyboard's "Done" (סיום) key, so the
+              // login works even if its button is hidden behind the keyboard.
+              returnKeyType="done"
+              onSubmitEditing={submit}
             />
 
             {error !== null && (
