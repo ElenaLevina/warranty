@@ -21,6 +21,7 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTranslation } from 'react-i18next';
 import Video from 'react-native-video';
 import Svg, { Path } from 'react-native-svg';
@@ -76,6 +77,52 @@ export function MediaViewerScreen({ navigation, route }: Props): React.JSX.Eleme
   const [saving, setSaving] = useState(false);
   // view-shot's default export is not usable as a type; only capture() is needed.
   const shotRef = useRef<{ capture?: () => Promise<string> }>(null);
+
+  // Pinch-to-zoom for quality review (two fingers, like the stock gallery) plus
+  // pan while zoomed and double-tap to reset. Disabled in drawing mode so it
+  // never interferes with strokes and the saved composite is always identity.
+  const [scale, setScale] = useState(1);
+  const [tx, setTx] = useState(0);
+  const [ty, setTy] = useState(0);
+  const zStart = useRef(1);
+  const panStart = useRef({ x: 0, y: 0 });
+  const resetZoom = (): void => {
+    setScale(1);
+    setTx(0);
+    setTy(0);
+  };
+  const zoomGesture = Gesture.Simultaneous(
+    Gesture.Pinch()
+      .enabled(!drawing)
+      .onStart(() => {
+        zStart.current = scale;
+      })
+      .onUpdate(e => setScale(Math.min(Math.max(zStart.current * e.scale, 1), 6)))
+      .onEnd(() => {
+        if (scale <= 1.01) {
+          resetZoom();
+        }
+      })
+      .runOnJS(true),
+    Gesture.Pan()
+      .enabled(!drawing)
+      .minPointers(1)
+      .onStart(() => {
+        panStart.current = { x: tx, y: ty };
+      })
+      .onUpdate(e => {
+        if (scale > 1.01) {
+          setTx(panStart.current.x + e.translationX);
+          setTy(panStart.current.y + e.translationY);
+        }
+      })
+      .runOnJS(true),
+  );
+  const doubleTap = Gesture.Tap()
+    .enabled(!drawing)
+    .numberOfTaps(2)
+    .onEnd(() => resetZoom())
+    .runOnJS(true);
 
   // Decrypt on mount, delete the temp copy on unmount.
   useEffect(() => {
@@ -171,21 +218,25 @@ export function MediaViewerScreen({ navigation, route }: Props): React.JSX.Eleme
     }
     // Photo: the ViewShot wraps EXACTLY the displayed image rect, so the saved
     // composite has no letterbox bars; capture rescales to native resolution.
+    // The pinch/pan transform is applied only for viewing (identity while
+    // drawing) so it never leaks into the captured markup.
     return (
-      <View style={styles.flex} onLayout={onLayout}>
-        {rect !== null && (
-          <ViewShot
-            ref={shotRef as never}
-            options={{
-              format: 'jpg',
-              quality: 0.9,
-              width: natural!.width,
-              height: natural!.height,
-            }}
-            style={[
-              styles.shot,
-              { left: rect.x, top: rect.y, width: rect.width, height: rect.height },
-            ]}>
+      <GestureDetector gesture={Gesture.Exclusive(doubleTap, zoomGesture)}>
+        <View style={styles.flex} onLayout={onLayout}>
+          {rect !== null && (
+            <ViewShot
+              ref={shotRef as never}
+              options={{
+                format: 'jpg',
+                quality: 0.9,
+                width: natural!.width,
+                height: natural!.height,
+              }}
+              style={[
+                styles.shot,
+                { left: rect.x, top: rect.y, width: rect.width, height: rect.height },
+                drawing ? null : { transform: [{ translateX: tx }, { translateY: ty }, { scale }] },
+              ]}>
             <Image
               source={{ uri: `file://${readable}` }}
               style={StyleSheet.absoluteFill}
@@ -223,8 +274,9 @@ export function MediaViewerScreen({ navigation, route }: Props): React.JSX.Eleme
               </Svg>
             </View>
           </ViewShot>
-        )}
-      </View>
+          )}
+        </View>
+      </GestureDetector>
     );
   };
 
@@ -234,7 +286,14 @@ export function MediaViewerScreen({ navigation, route }: Props): React.JSX.Eleme
 
       <View style={[styles.toolbar, { paddingBottom: insets.bottom + 12 }]}>
         {fileType === 'photo' && !drawing && (
-          <Pressable testID="start-draw" style={styles.btn} onPress={() => setDrawing(true)}>
+          <Pressable
+            testID="start-draw"
+            style={styles.btn}
+            // Reset zoom so strokes map 1:1 to the image and the capture is clean.
+            onPress={() => {
+              resetZoom();
+              setDrawing(true);
+            }}>
             <Text style={styles.btnText}>{t('viewer.draw')}</Text>
           </Pressable>
         )}

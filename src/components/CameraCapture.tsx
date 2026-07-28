@@ -19,6 +19,7 @@ import {
   AppState,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
   Camera,
   useCameraDevice,
@@ -99,17 +100,26 @@ export function CameraCapture({
   const [torch, setTorch] = useState(false);
   const [zoom, setZoom] = useState(1);
 
-  // Zoom presets relative to the lens' neutral zoom, clamped to the device max
-  // (drops a preset that would exceed maxZoom, so we never offer an unusable step).
-  const zoomPresets = useMemo(() => {
-    if (device === undefined) {
-      return [] as { label: string; value: number }[];
-    }
-    const base = device.neutralZoom;
-    return [1, 2, 3]
-      .map(mult => ({ label: `${mult}×`, value: Math.min(base * mult, device.maxZoom) }))
-      .filter((p, i, arr) => i === 0 || p.value > arr[i - 1]!.value + 0.01);
-  }, [device]);
+  // Pinch-to-zoom (two fingers, like the stock gallery/camera): continuous, to
+  // whatever level the user wants. zoomStart snapshots the zoom at gesture begin;
+  // each update scales it and clamps to the lens' range.
+  const zoomStart = useRef(1);
+  const pinch = useMemo(
+    () =>
+      Gesture.Pinch()
+        .onStart(() => {
+          zoomStart.current = zoom;
+        })
+        .onUpdate(e => {
+          const min = device?.minZoom ?? 1;
+          const max = device?.maxZoom ?? 1;
+          const next = Math.min(Math.max(zoomStart.current * e.scale, min), max);
+          setZoom(next);
+        })
+        .runOnJS(true),
+    [zoom, device],
+  );
+  const zoomFactor = device !== undefined ? zoom / device.neutralZoom : 1;
 
   // Start at the lens' neutral zoom once the device is known.
   useEffect(() => {
@@ -245,19 +255,29 @@ export function CameraCapture({
 
   return (
     <View style={styles.container}>
-      <Camera
-        ref={camera}
-        style={StyleSheet.absoluteFill}
-        device={device}
-        format={format}
-        isActive={cameraActive}
-        photo={currentMode === 'photo'}
-        video={currentMode === 'video'}
-        audio={currentMode === 'video'}
-        zoom={zoom}
-        // Torch (LED lamp) stays lit through the video recording when enabled.
-        torch={currentMode === 'video' && torch ? 'on' : 'off'}
-      />
+      {/* Pinch anywhere on the preview to zoom (two fingers, continuous). */}
+      <GestureDetector gesture={pinch}>
+        <Camera
+          ref={camera}
+          style={StyleSheet.absoluteFill}
+          device={device}
+          format={format}
+          isActive={cameraActive}
+          photo={currentMode === 'photo'}
+          video={currentMode === 'video'}
+          audio={currentMode === 'video'}
+          zoom={zoom}
+          // Torch (LED lamp) stays lit through the video recording when enabled.
+          torch={currentMode === 'video' && torch ? 'on' : 'off'}
+        />
+      </GestureDetector>
+
+      {/* Live zoom readout, shown only while zoomed past the default lens. */}
+      {zoomFactor > 1.05 && (
+        <View style={[styles.zoomPill, { top: insets.top + 12 }]} pointerEvents="none">
+          <Text style={styles.zoomPillText}>{zoomFactor.toFixed(1)}×</Text>
+        </View>
+      )}
 
       {showPlateFrame && (
         <View style={styles.overlay} pointerEvents="none">
@@ -302,24 +322,6 @@ export function CameraCapture({
           </Pressable>
         )}
       </View>
-
-      {/* Zoom presets (1×/2×/3×, clamped to the device). */}
-      {zoomPresets.length > 1 && (
-        <View style={[styles.zoomBar, { bottom: insets.bottom + 24 + 76 + 18 + (allowModeSwitch ? 60 : 0) }]}>
-          {zoomPresets.map(p => {
-            const active = Math.abs(zoom - p.value) < 0.01;
-            return (
-              <Pressable
-                key={p.label}
-                testID={`zoom-${p.label}`}
-                onPress={() => setZoom(p.value)}
-                style={[styles.zoomBtn, active && styles.zoomBtnActive]}>
-                <Text style={[styles.zoomText, active && styles.zoomTextActive]}>{p.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
 
       {allowModeSwitch && !recording && (
         // Anchored ABOVE the shutter (76px tall at insets.bottom+24) with a gap,
@@ -442,19 +444,15 @@ const styles = StyleSheet.create({
   roundBtnOn: { backgroundColor: '#f9a825' },
   roundIcon: { fontSize: 20 },
   roundLabel: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 2 },
-  zoomBar: {
+  zoomPill: {
     position: 'absolute',
     alignSelf: 'center',
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 22,
-    padding: 4,
-    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
-  zoomBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16 },
-  zoomBtnActive: { backgroundColor: '#fff' },
-  zoomText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  zoomTextActive: { color: '#111' },
+  zoomPillText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   modeToggle: {
     position: 'absolute',
     alignSelf: 'center',
