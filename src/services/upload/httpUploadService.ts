@@ -200,7 +200,7 @@ function deriveCaseId(filePath: string): string {
 }
 
 /** Bound a promise so a hung native call (e.g. decrypt) fails instead of spinning. */
-const DECRYPT_TIMEOUT_MS = 25_000;
+const DECRYPT_TIMEOUT_MS = 90_000;
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     p,
