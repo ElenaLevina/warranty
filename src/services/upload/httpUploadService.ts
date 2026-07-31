@@ -162,7 +162,8 @@ export class HttpUploadService implements UploadService {
     let stage = 'decrypt';
     try {
       // Decrypt to a readable temp path (passthrough returns the same path).
-      readablePath = await crypto.openFile(sealedPath);
+      // Bounded so a hung native decrypt surfaces an error instead of spinning.
+      readablePath = await withTimeout(crypto.openFile(sealedPath), DECRYPT_TIMEOUT_MS, 'decrypt timed out');
       stage = 'upload';
       const type = item.fileName.endsWith('.mp4') ? 'video' : 'photo';
       await transport.uploadFile({
@@ -196,4 +197,13 @@ export class HttpUploadService implements UploadService {
 function deriveCaseId(filePath: string): string {
   const idx = filePath.lastIndexOf('/');
   return idx <= 0 ? filePath : filePath.slice(0, idx);
+}
+
+/** Bound a promise so a hung native call (e.g. decrypt) fails instead of spinning. */
+const DECRYPT_TIMEOUT_MS = 25_000;
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(label)), ms)),
+  ]);
 }
