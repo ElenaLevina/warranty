@@ -1,21 +1,25 @@
 /**
- * RnfsHttpTransport — real UploadTransport over HTTP using react-native-fs for
- * multipart file upload (with progress) and fetch for JSON/health.
+ * RnfsHttpTransport — real UploadTransport over HTTP. ALL network calls (file
+ * upload, complete, health) go through `fetch`; react-native-fs is used only for
+ * RNFS.stat (file size). Uploads moved off RNFS.uploadFiles after a field
+ * incident where its native uploader could not reach the receiver on some phones
+ * (Xiaomi/MIUI) while fetch worked — the file silently never left the device.
  * Runs on the device; not exercised by Node unit tests.
  *
- * Timeouts (added after a field incident where a sleeping PC left uploads
- * hanging forever and the app stopped responding): every network call is
- * bounded, so an unreachable/asleep receiver makes the request FAIL quickly.
- * The file then stays queued and is retried later — the UI never freezes.
- *  - file upload: inactivity timeout (reset on each progress tick), so a large
- *    video on slow Wi-Fi keeps going, but a stalled connection is aborted;
- *  - complete / health: fixed AbortController timeouts.
+ * Every call is bounded by an AbortController timeout, so an unreachable/asleep
+ * receiver fails (the file stays queued) instead of hanging the UI.
  */
 import RNFS from 'react-native-fs';
 import type { CompleteParams, UploadFileParams, UploadTransport } from './uploadTransport';
 
-/** No upload progress for this long -> abort the transfer (stalled connection). */
-const UPLOAD_INACTIVITY_MS = 20_000;
+/**
+ * Per-file upload timeout. Uploads now go through `fetch` + FormData (the SAME
+ * networking stack as the health/complete calls) because RNFS.uploadFiles failed
+ * to reach the receiver on some devices (e.g. Xiaomi/MIUI) while fetch worked
+ * fine — the file just never left the phone. FormData streams the file from disk
+ * natively, so memory stays low; the timeout bounds a stalled connection.
+ */
+const UPLOAD_TIMEOUT_MS = 240_000;
 /** POST session.json — small body. */
 const COMPLETE_TIMEOUT_MS = 15_000;
 /** Connectivity probe — keep it snappy for the Settings "test connection" button. */
@@ -48,59 +52,33 @@ async function fetchWithTimeout(
 export class RnfsHttpTransport implements UploadTransport {
   async uploadFile(params: UploadFileParams): Promise<void> {
     const { baseUrl, token, caseId, filePath, fileName, type } = params;
-    // Integrity: send the file size (RNFS.stat is reliable, unlike RNFS.hash).
-    // The server verifies it received exactly this many bytes — catches
-    // truncated/incomplete uploads (e.g. a dropped connection mid-video).
+    // Integrity: send the file size so the server can catch a truncated upload.
+    // RNFS.stat is only a filesystem stat (works everywhere) — it is RNFS's
+    // network uploader we are avoiding, not stat.
     const stat = await RNFS.stat(filePath);
+    const uri = filePath.startsWith('file://') ? filePath : `file://${filePath}`;
 
-    let jobId = -1;
-    let timedOut = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const arm = (): void => {
-      if (timer !== undefined) {
-        clearTimeout(timer);
-      }
-      timer = setTimeout(() => {
-        timedOut = true;
-        if (jobId >= 0) {
-          RNFS.stopUpload(jobId);
-        }
-      }, UPLOAD_INACTIVITY_MS);
-    };
+    // Multipart body: RN's FormData streams the file from `uri` natively (no
+    // JS-memory copy) via the same OkHttp stack as the health check.
+    const form = new FormData();
+    form.append('filename', fileName);
+    form.append('type', type);
+    form.append('size', String(stat.size));
+    // The {uri,name,type} file part is RN-specific; cast to satisfy the DOM type.
+    form.append('file', { uri, name: fileName, type: mimeOf(type) } as unknown as Blob);
 
-    const upload = RNFS.uploadFiles({
-      toUrl: `${baseUrl}/v1/cases/${encodeURIComponent(caseId)}/files`,
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      fields: { filename: fileName, type, size: String(stat.size) },
-      files: [
-        {
-          name: 'file',
-          filename: fileName,
-          filepath: filePath.replace(/^file:\/\//, ''),
-          filetype: mimeOf(type),
-        },
-      ],
-      begin: () => arm(),
-      progress: () => arm(),
-    });
-    jobId = upload.jobId;
-    arm(); // start the clock even before the connection is established
-
-    try {
-      const result = await upload.promise;
-      if (result.statusCode < 200 || result.statusCode >= 300) {
-        throw new Error(`Upload failed (${result.statusCode}) for ${fileName}`);
-      }
-    } catch (e) {
-      if (timedOut) {
-        throw new Error(`Upload timed out for ${fileName} (receiver unreachable)`);
-      }
-      throw e;
-    } finally {
-      if (timer !== undefined) {
-        clearTimeout(timer);
-      }
+    const res = await fetchWithTimeout(
+      `${baseUrl}/v1/cases/${encodeURIComponent(caseId)}/files`,
+      {
+        method: 'POST',
+        // NOTE: do NOT set Content-Type — RN adds the multipart boundary itself.
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      },
+      UPLOAD_TIMEOUT_MS,
+    );
+    if (!res.ok) {
+      throw new Error(`Upload failed (${res.status}) for ${fileName}`);
     }
   }
 
