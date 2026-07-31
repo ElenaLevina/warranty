@@ -29,6 +29,8 @@ export interface SessionState {
   uploads: Record<string, UploadStatus>;
   /** Count of queued files not yet delivered to the PC (0 = all sent / nothing queued). */
   pendingUploads: number;
+  /** True while a manual "Send to PC" pass is running (drives the UI indicator). */
+  uploading: boolean;
   /** Raw text seen by OCR on the last recognize attempt (diagnostics). */
   lastOcrText: string;
 
@@ -51,8 +53,8 @@ export interface SessionState {
   /** Delete a low-quality file from the active case (not the plate photo). */
   deleteFile(fileName: string): Promise<void>;
   finish(): Promise<void>;
-  /** Retry the upload queue (called on network regained). */
-  processUploads(): Promise<void>;
+  /** Manually send the queued files to the PC (the only upload trigger now). */
+  sendToPc(): Promise<void>;
   /** Re-send EVERY case on this phone to the PC (recovery). Returns case count. */
   resendAllCases(): Promise<number>;
   /** List every case on the phone (open+closed) for the recovery/re-send screen. */
@@ -167,6 +169,7 @@ export function createSessionStore(services: AppServices): SessionStore {
       active: null,
       uploads: {},
       pendingUploads: 0,
+      uploading: false,
       lastOcrText: '',
 
       async bootstrap() {
@@ -188,14 +191,10 @@ export function createSessionStore(services: AppServices): SessionStore {
           await refreshOpenSessions(set);
           refreshPending();
         });
-        // Retry the upload queue in the BACKGROUND — never block the Start
-        // screen. If the receiver is unreachable each item times out (bounded
-        // in the transport) and stays queued for the next attempt. Reflect the
-        // outcome in the pending counter so the Start badge stays accurate.
-        void upload
-          .processQueue()
-          .then(() => refreshPending())
-          .catch(() => undefined);
+        // NO automatic upload on start. Uploads happen ONLY when the mechanic
+        // taps "Send to PC" (manual, with an on-screen indicator) — background
+        // passes on every reconnect competed with the camera/OCR and confused
+        // users when the connection test disagreed with an in-flight transfer.
       },
 
       async recognizePlate(imagePath: string) {
@@ -379,20 +378,11 @@ export function createSessionStore(services: AppServices): SessionStore {
             await refreshOpenSessions(set);
             // Thumbnails of a closed case are no longer needed (READ ONLY).
             await preview.clearCase(closed.case_id).catch(() => undefined);
-            // Enqueue the whole case now (nothing was queued while the session
-            // was open, so the PC folder is created only at finish).
+            // Enqueue the whole case for LATER manual upload. Nothing is sent
+            // now — the mechanic sends everything from Start via "Send to PC".
+            // (session.json is intentionally never sent to the PC.)
             await enqueueClosedCase(closed);
-            // Upload the case MEDIA in the BACKGROUND — never block the UI/close.
-            // Failures are retried by the queue (on reconnect / next start).
-            // session.json is intentionally NOT sent: the PC operators don't want
-            // it in the case folder. It stays on the phone as the source of truth.
-            // NOTE: the pending counter is refreshed ONLY after the send attempt
-            // finishes — so a successful send never flashes the "waiting" banner
-            // and the mechanic is not alarmed during the normal upload window.
-            void upload
-              .processQueue()
-              .then(() => refreshPending())
-              .catch(() => undefined);
+            refreshPending();
           });
         } finally {
           finishing = false;
@@ -450,12 +440,20 @@ export function createSessionStore(services: AppServices): SessionStore {
         });
       },
 
-      async processUploads() {
-        await run(async () => {
+      async sendToPc() {
+        if (get().uploading) {
+          return; // a send is already running
+        }
+        set({ uploading: true });
+        try {
           await upload.processQueue();
+        } catch {
+          // per-file errors are handled inside; nothing to surface here
+        } finally {
           syncUploads();
           refreshPending();
-        });
+          set({ uploading: false });
+        }
       },
 
       leaveActive() {

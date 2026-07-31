@@ -169,7 +169,7 @@ describe('sessionStore — full lifecycle', () => {
     expect(store.getState().openSessions.map(s => s.case_id)).toEqual([caseId]);
   });
 
-  it('tracks pending uploads for the Start-screen badge', async () => {
+  it('tracks pending uploads and sends only on manual sendToPc', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);
     await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
@@ -179,18 +179,16 @@ describe('sessionStore — full lifecycle', () => {
 
     await store.getState().setOrderType('warranty');
     await store.getState().finish();
-    // The badge updates only AFTER the background send attempt concludes (so a
-    // successful send never flashes it). Let that microtask run.
-    await new Promise<void>(resolve => setTimeout(() => resolve(), 0));
-    // The stub upload never delivers -> both files stay "waiting to send".
+    // Finish enqueues but sends NOTHING automatically -> both files wait.
     expect(store.getState().pendingUploads).toBe(2);
 
-    // Simulate the PC receiving them; a retry recomputes the badge to 0.
+    // Simulate the PC receiving them; a manual send recomputes the count to 0.
     for (const i of services.index.getQueue()) {
       services.index.updateUploadStatus(i.filePath, 'uploaded');
     }
-    await store.getState().processUploads();
+    await store.getState().sendToPc();
     expect(store.getState().pendingUploads).toBe(0);
+    expect(store.getState().uploading).toBe(false);
   });
 
   it('setRecommendation stores the flag and finish enqueues recommendation.txt', async () => {

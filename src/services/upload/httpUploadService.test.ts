@@ -26,7 +26,13 @@ class FakeTransport implements UploadTransport {
   /** When set, health() waits on this before resolving (to overlap passes). */
   healthGate?: Promise<void>;
 
+  /** When set, uploadFile waits on this before resolving (to overlap passes). */
+  uploadGate?: Promise<void>;
+
   async uploadFile(params: UploadFileParams): Promise<void> {
+    if (this.uploadGate !== undefined) {
+      await this.uploadGate;
+    }
     if (this.failUpload) {
       throw new Error('network down');
     }
@@ -143,48 +149,68 @@ describe('HttpUploadService', () => {
   });
 });
 
-describe('HttpUploadService skips the whole pass when the receiver is down', () => {
-  it('probes once and does NOT decrypt/upload anything, leaving items queued', async () => {
+describe('HttpUploadService bails out early when the receiver is down', () => {
+  it('stops after the FIRST failed upload (no fetch pre-gate), leaving the rest queued', async () => {
     const { svc, idx, transport } = harness(ENABLED);
-    transport.healthy = false;
+    transport.failUpload = true; // receiver unreachable: real uploads fail
     await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
     await svc.enqueue(item('caseX/video_001.mp4', 'video_001.mp4'));
 
     await svc.processQueue();
 
-    // One cheap probe, zero upload attempts (no per-file decrypt + timeout).
-    expect(transport.healthCalls).toBe(1);
+    // Only the first item was attempted; the pass bailed, rest still pending.
     expect(transport.uploads).toHaveLength(0);
-    expect(idx.getQueue().every(i => i.status === 'pending')).toBe(true);
+    expect(idx.getQueue()[0]?.status).toBe('error');
+    expect(idx.getQueue()[1]?.status).toBe('pending');
 
-    // Receiver back: the same queue drains normally.
-    transport.healthy = true;
+    // Receiver back: the same queue drains fully on the next send.
+    transport.failUpload = false;
     await svc.processQueue();
     expect(transport.uploads).toHaveLength(2);
     expect(idx.getQueue().every(i => i.status === 'uploaded')).toBe(true);
   });
 
-  it('does not probe at all when the queue is empty', async () => {
+  it('does no upload work when the queue is empty', async () => {
     const { svc, transport } = harness(ENABLED);
     await svc.processQueue();
-    expect(transport.healthCalls).toBe(0);
+    expect(transport.uploads).toHaveLength(0);
+  });
+
+  it('keeps going past a LATER transient failure once something got through', async () => {
+    const { svc, idx, transport } = harness(ENABLED);
+    await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
+    await svc.enqueue(item('caseX/photo_002.jpg', 'photo_002.jpg'));
+    // First succeeds; make the SECOND fail to prove we don't bail after success.
+    const realUpload = transport.uploadFile.bind(transport);
+    let n = 0;
+    transport.uploadFile = async p => {
+      n += 1;
+      if (n === 2) {
+        throw new Error('transient');
+      }
+      return realUpload(p);
+    };
+
+    await svc.processQueue();
+    expect(idx.getQueue()[0]?.status).toBe('uploaded');
+    expect(idx.getQueue()[1]?.status).toBe('error'); // attempted, not skipped
   });
 
   it('never runs two passes concurrently (bursty NetInfo events)', async () => {
     const { svc, transport } = harness(ENABLED);
     await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
-    // Hold the first pass inside health() so a second trigger overlaps it.
+    // Hold the first pass inside uploadFile so a second trigger overlaps it.
     let release = (): void => {};
-    transport.healthGate = new Promise<void>(r => {
+    transport.uploadGate = new Promise<void>(r => {
       release = r;
     });
 
     const first = svc.processQueue();
-    const second = svc.processQueue(); // must early-return (guard), not probe again
+    const second = svc.processQueue(); // must early-return (running guard)
     release();
     await Promise.all([first, second]);
 
-    expect(transport.healthCalls).toBe(1);
+    // The guard prevented a second concurrent pass: only one upload happened.
     expect(transport.uploads).toHaveLength(1);
   });
 });

@@ -20,6 +20,9 @@ export const ru: Translation = {
     settings: 'Настройки',
     logout: 'Выйти',
     pendingUploads: '⚠ {{count}} файлов ждут отправки на ПК — нажмите для повтора',
+    pendingCount: '⚠ Не отправлено на ПК: {{count}}',
+    sendToPc: 'Отправить на ПК',
+    sending: 'Отправка на ПК…',
     openFailed: 'Не удалось открыть сессию',
   },
   plate: {

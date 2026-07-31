@@ -21,6 +21,9 @@ export const ar: Translation = {
     settings: 'الإعدادات',
     logout: 'خروج',
     pendingUploads: '⚠ {{count}} ملفات بانتظار الإرسال إلى الحاسوب — انقر لإعادة المحاولة',
+    pendingCount: '⚠ بانتظار الإرسال إلى الحاسوب: {{count}}',
+    sendToPc: 'إرسال إلى الحاسوب',
+    sending: 'جارٍ الإرسال إلى الحاسوب…',
     openFailed: 'تعذّر فتح الجلسة',
   },
   plate: {

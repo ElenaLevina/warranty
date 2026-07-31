@@ -19,6 +19,9 @@ export const en = {
     settings: 'Settings',
     logout: 'Log out',
     pendingUploads: '⚠ {{count}} files waiting to be sent to the PC — tap to retry',
+    pendingCount: '⚠ Waiting to be sent to the PC: {{count}}',
+    sendToPc: 'Send to the PC',
+    sending: 'Sending to the PC…',
     openFailed: 'Could not open the session',
   },
   plate: {

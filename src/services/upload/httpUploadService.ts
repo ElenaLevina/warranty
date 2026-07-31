@@ -73,24 +73,26 @@ export class HttpUploadService implements UploadService {
     pending: UploadQueueItem[],
     completes: PendingComplete[],
   ): Promise<void> {
-    const s = this.deps.config.get();
-    // ONE cheap probe before any expensive work. Uploading decrypts each queued
-    // file in full to a temp (videos are tens of MB) and then waits out a
-    // timeout; doing that for the whole queue while the receiver is unreachable
-    // burned memory/CPU on every app start and starved the camera + ML Kit OCR
-    // (spinner, then an out-of-memory crash while scanning the work order).
-    // If the receiver is down, skip the pass — items stay queued for next time.
-    const reachable = await this.deps.transport.health(s.baseUrl, s.token).catch(() => false);
-    if (!reachable) {
-      return;
-    }
+    // No fetch-based "health" pre-gate: the health probe uses a DIFFERENT
+    // network stack than the actual upload (react-native-fs), so it could report
+    // "unreachable" on a phone whose uploads work fine — silently blocking the
+    // whole queue. Instead we use the REAL upload path as the reachability test:
+    // try files sequentially, and if the FIRST one fails (server truly down) bail
+    // out immediately so a big backlog is not ground through against a dead PC.
+    let sent = 0;
     for (const item of pending) {
-      // Sequential to keep memory/network sane (videos can be large).
       // eslint-disable-next-line no-await-in-loop
-      await this.tryUpload(item);
+      const ok = await this.tryUpload(item);
+      if (ok) {
+        sent += 1;
+      } else if (sent === 0) {
+        // The very first attempt failed -> receiver unreachable; stop the pass.
+        // Remaining items stay queued for the next manual "Send to PC".
+        return;
+      }
+      // A later failure (transient) just leaves that item queued; keep going.
     }
-    // session.json of finished cases is retried too: a finish while the PC was
-    // unreachable must not lose the case metadata (bug found in field testing).
+    // session.json of finished cases is (re)sent too, once files got through.
     for (const c of completes) {
       // eslint-disable-next-line no-await-in-loop
       await this.tryComplete(c.caseId, c.sessionJson);
@@ -137,11 +139,12 @@ export class HttpUploadService implements UploadService {
     this.deps.onStatus?.(item.fileName, status);
   }
 
-  private async tryUpload(item: UploadQueueItem): Promise<void> {
+  /** Upload one file. Returns true on success, false on failure (stays queued). */
+  private async tryUpload(item: UploadQueueItem): Promise<boolean> {
     const { config, crypto, fs, transport, casesRoot } = this.deps;
     const s = config.get();
     if (!s.enabled || s.baseUrl.length === 0) {
-      return; // offline/not configured: leave it pending
+      return false; // offline/not configured: leave it pending
     }
 
     this.setStatus(item, 'uploading');
@@ -160,11 +163,13 @@ export class HttpUploadService implements UploadService {
         type,
       });
       this.setStatus(item, 'uploaded');
+      return true;
     } catch (e) {
       // Surface the reason in Metro/logcat to diagnose upload failures.
       // eslint-disable-next-line no-console
       console.warn(`[upload] failed ${item.filePath}:`, e instanceof Error ? e.message : e);
       this.setStatus(item, 'error');
+      return false;
     } finally {
       // Remove the decrypted temp copy if it differs from the sealed file.
       if (readablePath !== null && readablePath !== sealedPath) {
