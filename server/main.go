@@ -67,6 +67,14 @@ func main() {
 	mux.HandleFunc("GET /v1/health", s.auth(s.handleHealth))
 	mux.HandleFunc("POST /v1/cases/{caseId}/files", s.auth(s.handleFile))
 	mux.HandleFunc("POST /v1/cases/{caseId}/complete", s.auth(s.handleComplete))
+	// Access log: every request, so we can see exactly what a phone sends
+	// (method, path, remote addr) even when auth fails or the body is empty.
+	logged := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("REQ %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+			next.ServeHTTP(w, r)
+		})
+	}
 
 	tls := *certFile != "" && *keyFile != ""
 	scheme := "http"
@@ -75,9 +83,9 @@ func main() {
 	}
 	log.Printf("warranty-receiver listening on %s (%s), saving to %s", *addr, scheme, *dir)
 	if tls {
-		log.Fatal(http.ListenAndServeTLS(*addr, *certFile, *keyFile, mux))
+		log.Fatal(http.ListenAndServeTLS(*addr, *certFile, *keyFile, logged(mux)))
 	} else {
-		log.Fatal(http.ListenAndServe(*addr, mux))
+		log.Fatal(http.ListenAndServe(*addr, logged(mux)))
 	}
 }
 

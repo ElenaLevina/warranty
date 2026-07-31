@@ -35,8 +35,14 @@ export class HttpUploadService implements UploadService {
   /** Guard so overlapping triggers (app start + NetInfo events + finish) never
    *  run the queue concurrently — otherwise dead-Wi-Fi health probes pile up. */
   private running = false;
+  /** Reason of the last failed upload, surfaced in the UI for field diagnosis. */
+  private lastError = '';
 
   constructor(private readonly deps: HttpUploadDeps) {}
+
+  lastUploadError(): string {
+    return this.lastError;
+  }
 
   async enqueue(item: UploadQueueItem): Promise<void> {
     // Queue only — NO per-file upload. Files are sent in the background on
@@ -46,8 +52,10 @@ export class HttpUploadService implements UploadService {
   }
 
   async processQueue(): Promise<void> {
+    this.lastError = '';
     const s = this.deps.config.get();
     if (!s.enabled || s.baseUrl.length === 0) {
+      this.lastError = 'upload disabled or no PC address';
       return; // offline/not configured: leave everything pending
     }
     const pending = this.deps.index.getQueue().filter(i => i.status !== 'uploaded');
@@ -150,9 +158,12 @@ export class HttpUploadService implements UploadService {
     this.setStatus(item, 'uploading');
     const sealedPath = `${casesRoot}/${item.filePath}`;
     let readablePath: string | null = null;
+    // Track which stage we are in so a failure names it (decrypt vs network).
+    let stage = 'decrypt';
     try {
       // Decrypt to a readable temp path (passthrough returns the same path).
       readablePath = await crypto.openFile(sealedPath);
+      stage = 'upload';
       const type = item.fileName.endsWith('.mp4') ? 'video' : 'photo';
       await transport.uploadFile({
         baseUrl: s.baseUrl,
@@ -165,9 +176,11 @@ export class HttpUploadService implements UploadService {
       this.setStatus(item, 'uploaded');
       return true;
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.lastError = `${stage}: ${msg} (${item.fileName})`;
       // Surface the reason in Metro/logcat to diagnose upload failures.
       // eslint-disable-next-line no-console
-      console.warn(`[upload] failed ${item.filePath}:`, e instanceof Error ? e.message : e);
+      console.warn(`[upload] failed ${item.filePath}:`, msg);
       this.setStatus(item, 'error');
       return false;
     } finally {

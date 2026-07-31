@@ -82,8 +82,8 @@ android {
         applicationId "com.warranty"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 18
-        versionName "1.4.13"
+        versionCode 19
+        versionName "1.4.14"
     }
     signingConfigs {
         debug {

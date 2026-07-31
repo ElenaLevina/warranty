@@ -16,6 +16,8 @@ export interface UploadService {
   completeCase(caseId: string, sessionJson: string): Promise<void>;
   /** Check connectivity to the receiver (for the Settings screen). */
   checkConnection(): Promise<boolean>;
+  /** Human-readable reason of the last failed upload (diagnostics), or ''. */
+  lastUploadError?(): string;
 }
 
 export class StubUploadService implements UploadService {
@@ -36,5 +38,9 @@ export class StubUploadService implements UploadService {
 
   async checkConnection(): Promise<boolean> {
     return false; // no receiver configured
+  }
+
+  lastUploadError(): string {
+    return '';
   }
 }

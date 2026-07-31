@@ -20,6 +20,7 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
   const openSessions = useSessionStore(s => s.openSessions);
   const pendingUploads = useSessionStore(s => s.pendingUploads);
   const uploading = useSessionStore(s => s.uploading);
+  const uploadError = useSessionStore(s => s.uploadError);
   const error = useSessionStore(s => s.error);
   const actions = useSessionActions();
   const { upload } = useServices();
@@ -131,6 +132,9 @@ export function StartScreen({ navigation }: Props): React.JSX.Element {
           {uploading && <Text style={styles.sendingText}>{t('start.sending')}</Text>}
           {!uploading && conn === 'ok' && <Text style={styles.connOk}>{t('settings.serverOk')}</Text>}
           {!uploading && conn === 'fail' && <Text style={styles.connFail}>{t('settings.serverFail')}</Text>}
+          {!uploading && uploadError.length > 0 && (
+            <Text testID="upload-error" style={styles.connFail}>{uploadError}</Text>
+          )}
         </View>
       )}
 

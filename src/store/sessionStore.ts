@@ -31,6 +31,8 @@ export interface SessionState {
   pendingUploads: number;
   /** True while a manual "Send to PC" pass is running (drives the UI indicator). */
   uploading: boolean;
+  /** Reason of the last failed manual send (shown on Start for diagnosis), or ''. */
+  uploadError: string;
   /** Raw text seen by OCR on the last recognize attempt (diagnostics). */
   lastOcrText: string;
 
@@ -170,6 +172,7 @@ export function createSessionStore(services: AppServices): SessionStore {
       uploads: {},
       pendingUploads: 0,
       uploading: false,
+      uploadError: '',
       lastOcrText: '',
 
       async bootstrap() {
@@ -444,15 +447,16 @@ export function createSessionStore(services: AppServices): SessionStore {
         if (get().uploading) {
           return; // a send is already running
         }
-        set({ uploading: true });
+        set({ uploading: true, uploadError: '' });
         try {
           await upload.processQueue();
-        } catch {
-          // per-file errors are handled inside; nothing to surface here
+        } catch (e) {
+          set({ uploadError: e instanceof Error ? e.message : String(e) });
         } finally {
           syncUploads();
           refreshPending();
-          set({ uploading: false });
+          // Surface the transport's reason for the first failed file (if any).
+          set({ uploading: false, uploadError: upload.lastUploadError?.() ?? get().uploadError });
         }
       },
 
