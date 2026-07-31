@@ -83,22 +83,21 @@ export class HttpUploadService implements UploadService {
   ): Promise<void> {
     // No fetch-based "health" pre-gate: the health probe uses a DIFFERENT
     // network stack than the actual upload (react-native-fs), so it could report
-    // "unreachable" on a phone whose uploads work fine — silently blocking the
-    // whole queue. Instead we use the REAL upload path as the reachability test:
-    // try files sequentially, and if the FIRST one fails (server truly down) bail
-    // out immediately so a big backlog is not ground through against a dead PC.
+    // "unreachable" on a phone whose uploads work fine. Use the REAL upload path
+    // as the reachability test. Distinguish failure kinds:
+    //  - 'network' before anything got through -> receiver down, stop the pass;
+    //  - 'decrypt' (e.g. a too-large video) -> SKIP that one file and keep going,
+    //    so one bad file never blocks the rest of the queue.
     let sent = 0;
     for (const item of pending) {
       // eslint-disable-next-line no-await-in-loop
-      const ok = await this.tryUpload(item);
-      if (ok) {
+      const r = await this.tryUpload(item);
+      if (r === 'ok') {
         sent += 1;
-      } else if (sent === 0) {
-        // The very first attempt failed -> receiver unreachable; stop the pass.
-        // Remaining items stay queued for the next manual "Send to PC".
-        return;
+      } else if (r === 'network' && sent === 0) {
+        return; // receiver unreachable; leave everything queued for next time
       }
-      // A later failure (transient) just leaves that item queued; keep going.
+      // 'decrypt' failure, or a network failure after some success -> skip & continue.
     }
     // session.json of finished cases is (re)sent too, once files got through.
     for (const c of completes) {
@@ -147,12 +146,12 @@ export class HttpUploadService implements UploadService {
     this.deps.onStatus?.(item.fileName, status);
   }
 
-  /** Upload one file. Returns true on success, false on failure (stays queued). */
-  private async tryUpload(item: UploadQueueItem): Promise<boolean> {
+  /** Upload one file. 'ok' | 'decrypt' (skip this file) | 'network' (server down). */
+  private async tryUpload(item: UploadQueueItem): Promise<'ok' | 'decrypt' | 'network'> {
     const { config, crypto, fs, transport, casesRoot } = this.deps;
     const s = config.get();
     if (!s.enabled || s.baseUrl.length === 0) {
-      return false; // offline/not configured: leave it pending
+      return 'network'; // offline/not configured: leave it pending
     }
 
     this.setStatus(item, 'uploading');
@@ -175,7 +174,7 @@ export class HttpUploadService implements UploadService {
         type,
       });
       this.setStatus(item, 'uploaded');
-      return true;
+      return 'ok';
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.lastError = `${stage}: ${msg} (${item.fileName})`;
@@ -183,7 +182,7 @@ export class HttpUploadService implements UploadService {
       // eslint-disable-next-line no-console
       console.warn(`[upload] failed ${item.filePath}:`, msg);
       this.setStatus(item, 'error');
-      return false;
+      return stage === 'decrypt' ? 'decrypt' : 'network';
     } finally {
       // Remove the decrypted temp copy if it differs from the sealed file.
       if (readablePath !== null && readablePath !== sealedPath) {

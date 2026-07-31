@@ -176,6 +176,38 @@ describe('HttpUploadService bails out early when the receiver is down', () => {
     expect(transport.uploads).toHaveLength(0);
   });
 
+  it('skips a file that fails to decrypt and keeps sending the rest', async () => {
+    const idx = new MmkvStorageIndex();
+    idx.clear();
+    const fs = new InMemoryFileSystem();
+    const transport = new FakeTransport();
+    class ThrowingCrypto extends PassthroughCryptoService {
+      override async openFile(p: string): Promise<string> {
+        if (p.includes('video_001')) {
+          throw new Error('decrypt timed out');
+        }
+        return p;
+      }
+    }
+    const svc = new HttpUploadService({
+      config: fakeConfig(ENABLED),
+      index: idx,
+      crypto: new ThrowingCrypto(fs),
+      fs,
+      transport,
+      casesRoot: '/data/cases',
+    });
+    await svc.enqueue(item('caseX/video_001.mp4', 'video_001.mp4'));
+    await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));
+
+    await svc.processQueue();
+
+    // The un-decryptable video is skipped (error), the photo still uploads.
+    expect(idx.getQueue().find(i => i.fileName === 'video_001.mp4')?.status).toBe('error');
+    expect(idx.getQueue().find(i => i.fileName === 'photo_001.jpg')?.status).toBe('uploaded');
+    expect(transport.uploads.map(u => u.fileName)).toEqual(['photo_001.jpg']);
+  });
+
   it('keeps going past a LATER transient failure once something got through', async () => {
     const { svc, idx, transport } = harness(ENABLED);
     await svc.enqueue(item('caseX/photo_001.jpg', 'photo_001.jpg'));

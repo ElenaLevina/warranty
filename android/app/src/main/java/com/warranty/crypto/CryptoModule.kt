@@ -13,8 +13,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.security.KeyStore
 import javax.crypto.Cipher
-import javax.crypto.CipherInputStream
-import javax.crypto.CipherOutputStream
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
@@ -98,15 +96,21 @@ class CryptoModule(reactContext: ReactApplicationContext) :
       val src = File(srcPath.removePrefix("file://"))
       val dest = File(destPath.removePrefix("file://"))
       dest.parentFile?.mkdirs()
-      // STREAMING encrypt: never hold the whole file (videos are tens/hundreds
-      // of MB) in memory. Format stays [12-byte IV][GCM ciphertext+tag], so files
-      // remain compatible with openFile (and with the old whole-file path).
+      // Chunked encrypt (cipher.update per 64 KB block, doFinal for the tag):
+      // never hold the whole file (videos are tens/hundreds of MB) in memory.
+      // Format stays [12-byte IV][GCM ciphertext+tag], compatible with openFile.
       val cipher = Cipher.getInstance(TRANSFORMATION)
       cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
       FileOutputStream(dest).use { fout ->
         fout.write(cipher.iv) // prepend the 12-byte IV
-        CipherOutputStream(fout, cipher).use { cout ->
-          FileInputStream(src).use { fin -> fin.copyTo(cout, BUFFER_SIZE) }
+        FileInputStream(src).use { fin ->
+          val buf = ByteArray(BUFFER_SIZE)
+          while (true) {
+            val n = fin.read(buf)
+            if (n < 0) break
+            cipher.update(buf, 0, n)?.let { fout.write(it) }
+          }
+          fout.write(cipher.doFinal())
         }
       }
       promise.resolve(null)
@@ -120,9 +124,9 @@ class CryptoModule(reactContext: ReactApplicationContext) :
     try {
       val src = File(srcPath.removePrefix("file://"))
       val out = File(reactApplicationContext.cacheDir, "dec_${System.nanoTime()}")
-      // STREAMING decrypt: read the IV, then pipe the rest through a
-      // CipherInputStream to the output file in chunks — no whole-file (2x) copy
-      // in memory, which timed out / OOM'd on large videos on some phones.
+      // Chunked decrypt (read IV, then cipher.update per 64 KB block, doFinal
+      // verifies the tag): no whole-file (2x) copy in memory, which timed out /
+      // OOM'd on large videos on some phones.
       FileInputStream(src).use { fin ->
         val iv = ByteArray(IV_LEN)
         if (fin.read(iv) != IV_LEN) {
@@ -130,8 +134,14 @@ class CryptoModule(reactContext: ReactApplicationContext) :
         }
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(GCM_TAG_BITS, iv))
-        CipherInputStream(fin, cipher).use { cin ->
-          FileOutputStream(out).use { fout -> cin.copyTo(fout, BUFFER_SIZE) }
+        FileOutputStream(out).use { fout ->
+          val buf = ByteArray(BUFFER_SIZE)
+          while (true) {
+            val n = fin.read(buf)
+            if (n < 0) break
+            cipher.update(buf, 0, n)?.let { fout.write(it) }
+          }
+          fout.write(cipher.doFinal())
         }
       }
       promise.resolve(out.absolutePath)
