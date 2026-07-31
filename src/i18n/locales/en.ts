@@ -90,6 +90,9 @@ export const en = {
     deleteMsg: 'The file will be permanently removed from the inspection.',
     deleteConfirm: 'Delete',
     plateProtected: 'The plate photo cannot be deleted.',
+    deleteSessionTitle: 'Delete this inspection?',
+    deleteSessionMsg: 'All photos and videos of this inspection will be permanently removed (wrong car for this order).',
+    deleteSessionConfirm: 'Delete inspection',
   },
   complete: {
     title: 'Done',

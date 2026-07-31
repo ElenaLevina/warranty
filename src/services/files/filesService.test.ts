@@ -325,6 +325,31 @@ describe('FilesService resilience to an unreadable case', () => {
   });
 });
 
+describe('FilesService.deleteCase (discard a wrong-car session)', () => {
+  it('removes the whole open case folder and drops it from open sessions', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.addPhoto(meta.case_id, '/tmp/shot.jpg');
+
+    await svc.deleteCase(meta.case_id);
+
+    expect(await fs.exists(`${ROOT}/${meta.case_id}/plate.jpg`)).toBe(false);
+    expect(await fs.exists(`${ROOT}/${meta.case_id}/session.json`)).toBe(false);
+    expect(await svc.listOpenSessions()).toHaveLength(0);
+  });
+
+  it('refuses to delete a CLOSED case (READ ONLY) and logs the attempt', async () => {
+    const { fs, svc } = await setup();
+    const meta = await createOpenCase(svc);
+    await svc.setOrderType(meta.case_id, 'warranty');
+    const closed = await svc.closeCase(meta.case_id);
+
+    await expect(svc.deleteCase(closed.case_id)).rejects.toBeInstanceOf(SessionClosedError);
+    expect(await fs.exists(`${ROOT}/${closed.case_id}/plate.jpg`)).toBe(true);
+    expect(await fs.readFile(`${ROOT}/tamper.log`)).toContain('deleteCase');
+  });
+});
+
 describe('FilesService recommendation (המלצה)', () => {
   it('materializes recommendation.txt with the fixed text when the flag is on', async () => {
     const { fs, svc } = await setup();

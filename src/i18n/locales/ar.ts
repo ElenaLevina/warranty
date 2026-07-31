@@ -92,6 +92,9 @@ export const ar: Translation = {
     deleteMsg: 'سيُحذف الملف نهائيًا من الفحص.',
     deleteConfirm: 'حذف',
     plateProtected: 'لا يمكن حذف صورة لوحة الترخيص.',
+    deleteSessionTitle: 'حذف الفحص؟',
+    deleteSessionMsg: 'ستُحذف جميع صور ومقاطع هذا الفحص نهائيًا (سيارة خاطئة لهذا الطلب).',
+    deleteSessionConfirm: 'حذف الفحص',
   },
   complete: {
     title: 'تم',

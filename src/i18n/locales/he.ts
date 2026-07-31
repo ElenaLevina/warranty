@@ -92,6 +92,9 @@ export const he: Translation = {
     deleteMsg: 'הקובץ יימחק מהבדיקה לצמיתות.',
     deleteConfirm: 'מחק',
     plateProtected: 'לא ניתן למחוק את צילום מספר הרישוי.',
+    deleteSessionTitle: 'למחוק את הבדיקה?',
+    deleteSessionMsg: 'כל התמונות והסרטונים של בדיקה זו יימחקו לצמיתות (רכב שגוי להזמנה).',
+    deleteSessionConfirm: 'מחק בדיקה',
   },
   complete: {
     title: 'הסתיים',

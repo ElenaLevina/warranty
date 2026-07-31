@@ -244,6 +244,24 @@ export class FilesService {
     return meta;
   }
 
+  /**
+   * Delete an ENTIRE open case (folder + every file) — for discarding a session
+   * the mechanic started on the wrong car. Refused on a closed case (READ ONLY,
+   * already delivered) and the attempt is logged.
+   */
+  async deleteCase(caseId: string): Promise<void> {
+    await this.assertOpen(caseId, 'deleteCase');
+    const dir = this.caseDir(caseId);
+    const entries = await this.fs.readDir(dir);
+    for (const e of entries) {
+      if (e.isFile) {
+        // eslint-disable-next-line no-await-in-loop
+        await this.fs.unlink(e.path).catch(() => undefined);
+      }
+    }
+    await this.fs.unlink(dir).catch(() => undefined); // best-effort: remove the folder
+  }
+
   async setDescription(caseId: string, description: string): Promise<void> {
     const meta = await this.assertOpen(caseId, 'setDescription');
     meta.description = description;

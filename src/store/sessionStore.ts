@@ -54,6 +54,8 @@ export interface SessionState {
   replacePhoto(fileName: string, tmpPath: string): Promise<void>;
   /** Delete a low-quality file from the active case (not the plate photo). */
   deleteFile(fileName: string): Promise<void>;
+  /** Discard the ENTIRE active (open) session — e.g. wrong car for this order. */
+  deleteActiveSession(): Promise<void>;
   finish(): Promise<void>;
   /** Manually send the queued files to the PC (the only upload trigger now). */
   sendToPc(): Promise<void>;
@@ -347,6 +349,21 @@ export function createSessionStore(services: AppServices): SessionStore {
           const nextUploads = { ...get().uploads };
           delete nextUploads[fileName];
           set({ active: meta, uploads: nextUploads });
+        });
+      },
+
+      async deleteActiveSession() {
+        const active = get().active;
+        if (active === null) {
+          return;
+        }
+        await run(async () => {
+          const caseId = active.case_id;
+          await files.deleteCase(caseId);
+          await preview.clearCase(caseId).catch(() => undefined);
+          set({ active: null, uploads: {} });
+          await refreshOpenSessions(set);
+          refreshPending();
         });
       },
 

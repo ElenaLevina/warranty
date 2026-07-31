@@ -246,6 +246,19 @@ describe('sessionStore — full lifecycle', () => {
     expect(store.getState().uploads['photo_001.jpg']).toBeUndefined();
   });
 
+  it('deleteActiveSession discards the whole open session', async () => {
+    const { store, services } = harness(okOcr);
+    await seedTmp(services);
+    const caseId = await store.getState().startCase(PLATE, '/tmp/plate.jpg', '113188');
+    await store.getState().addPhoto('/tmp/shot.jpg');
+
+    await store.getState().deleteActiveSession();
+
+    expect(store.getState().active).toBeNull();
+    expect(store.getState().openSessions).toHaveLength(0);
+    expect(await services.fs.exists(`/data/cases/${caseId}/session.json`)).toBe(false);
+  });
+
   it('deleteFile refuses to delete the plate photo', async () => {
     const { store, services } = harness(okOcr);
     await seedTmp(services);

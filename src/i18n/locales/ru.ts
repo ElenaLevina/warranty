@@ -91,6 +91,9 @@ export const ru: Translation = {
     deleteMsg: 'Файл будет безвозвратно удалён из осмотра.',
     deleteConfirm: 'Удалить',
     plateProtected: 'Фото номерного знака удалить нельзя.',
+    deleteSessionTitle: 'Удалить осмотр?',
+    deleteSessionMsg: 'Все фото и видео этого осмотра будут безвозвратно удалены (не та машина по заявке).',
+    deleteSessionConfirm: 'Удалить осмотр',
   },
   complete: {
     title: 'Готово',

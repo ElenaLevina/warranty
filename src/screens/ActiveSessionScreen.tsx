@@ -54,6 +54,31 @@ export function ActiveSessionScreen({ navigation }: Props): React.JSX.Element {
           <Text style={styles.headerBtn}>🏠 {t('session.toStart')}</Text>
         </Pressable>
       ),
+      // Discard the whole session (wrong car for this order). Destructive → confirm.
+      headerRight: () => (
+        <Pressable
+          testID="delete-session"
+          hitSlop={12}
+          onPress={() => {
+            Alert.alert(t('session.deleteSessionTitle'), t('session.deleteSessionMsg'), [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('session.deleteSessionConfirm'),
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await actions.deleteActiveSession();
+                    navigation.reset({ index: 0, routes: [{ name: 'Start' }] });
+                  } catch (e) {
+                    Alert.alert(t('session.finishFailedTitle'), e instanceof Error ? e.message : String(e));
+                  }
+                },
+              },
+            ]);
+          }}>
+          <Text style={styles.headerDanger}>🗑</Text>
+        </Pressable>
+      ),
     });
   }, [navigation, actions, t]);
 
@@ -269,6 +294,7 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1, justifyContent: 'center', padding: 24 },
   empty: { textAlign: 'center', marginBottom: 24, color: '#444', fontSize: 18, fontWeight: '700' },
   headerBtn: { color: '#1565c0', fontSize: 16, fontWeight: '700', paddingHorizontal: 4 },
+  headerDanger: { fontSize: 20, paddingHorizontal: 4 },
   plate: { fontSize: 28, fontWeight: '900', color: '#222', textAlign: 'center' },
   order: { fontSize: 15, fontWeight: '700', color: '#1565c0', textAlign: 'center', marginTop: 2 },
   counter: { fontSize: 13, color: '#777', textAlign: 'center', marginTop: 4 },
