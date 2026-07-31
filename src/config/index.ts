@@ -4,7 +4,7 @@
  */
 export const APP_CONFIG = {
   /** App version shown in Settings (bump together with android versionName). */
-  appVersion: '1.4.15',
+  appVersion: '1.4.16',
   /** Where the "Update the app" button sends the phone to download a new APK. */
   updateUrl: 'http://192.168.68.122:8000',
   /** Временный идентификатор механика до внедрения авторизации (Фаза auth). */

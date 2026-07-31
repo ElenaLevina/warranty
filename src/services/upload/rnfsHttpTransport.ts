@@ -19,7 +19,7 @@ import type { CompleteParams, UploadFileParams, UploadTransport } from './upload
  * fine — the file just never left the phone. FormData streams the file from disk
  * natively, so memory stays low; the timeout bounds a stalled connection.
  */
-const UPLOAD_TIMEOUT_MS = 30_000;
+const UPLOAD_TIMEOUT_MS = 180_000;
 /** POST session.json — small body. */
 const COMPLETE_TIMEOUT_MS = 15_000;
 /** Connectivity probe — keep it snappy for the Settings "test connection" button. */
